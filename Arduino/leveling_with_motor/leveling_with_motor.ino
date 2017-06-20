@@ -28,30 +28,37 @@ float angle_pitch_output, angle_roll_output;
 bool staying;
 bool goingUp;
 bool goingDown;
+bool changeState;
+int currentState;
 
 ros::NodeHandle nh;
 
 void motorStateCallback(const std_msgs::Int32& state) {
-  
-  if(state.data == 0){
-    goingDown = true;
-    staying = false;
-    goingUp = false;
-    nh.loginfo("Going down...");
+  if(currentState != state.data){
+    changeState = true;
   }
-  else if(state.data == 1){
-    goingDown = false;
-    staying = true;
-    goingUp = false;
-    nh.loginfo("Staying...");
+  if(changeState){
+    currentState = state.data;
+    changeState = false;
+    if(state.data == 0){
+      goingDown = true;
+      staying = false;
+      goingUp = false;
+      nh.loginfo("Going down...");
+    }
+    else if(state.data == 1){
+      goingDown = false;
+      staying = true;
+      goingUp = false;
+      nh.loginfo("Staying...");
+    }
+    else if(state.data == 2){
+      goingDown = false;
+      staying = false;
+      goingUp = true;
+      nh.loginfo("Going up...");
+    }
   }
-  else if(state.data == 2){
-    goingDown = false;
-    staying = false;
-    goingUp = true;
-    nh.loginfo("Going up...");
-  }
-  
 }
 
 ros::Subscriber<std_msgs::Int32> stateSubscriber("motor_state", &motorStateCallback);
@@ -98,6 +105,8 @@ void setup() {
   staying = true; //Start with staying mode
   goingDown = false;
   goingUp = false;
+  changeState = false;
+  currentState = 1;
 
   nh.initNode();
   nh.subscribe(stateSubscriber);
