@@ -29,31 +29,37 @@ bool staying;
 bool goingUp;
 bool goingDown;
 
+ros::NodeHandle nh;
+
 void motorStateCallback(const std_msgs::Int32& state) {
   
   if(state.data == 0){
     goingDown = true;
     staying = false;
     goingUp = false;
+    nh.loginfo("Going down...");
   }
   else if(state.data == 1){
     goingDown = false;
     staying = true;
     goingUp = false;
+    nh.loginfo("Staying...");
   }
   else if(state.data == 2){
     goingDown = false;
     staying = false;
     goingUp = true;
+    nh.loginfo("Going up...");
   }
+  
 }
 
-ros::NodeHandle nh;
-ros::Subscriber<std_msgs::Int32> stateSubscriber("motorState", &motorStateCallback);
+ros::Subscriber<std_msgs::Int32> stateSubscriber("motor_state", &motorStateCallback);
 //***********************
 
 
 void setup() {
+  
   //For servo motors on Pelican, pins 2-5 are for motors 1-4. PWM on these motors are 1100-1499 (counter
   //clockwise direction) and 1501-1900 (clockwise direction). Note that in code I use pins 6-8, this was used
   //for testing with leds. 
@@ -85,36 +91,44 @@ void setup() {
   Wire.begin();
   Serial.begin(9600);
 
- setup_mpu_6050_registers();     //Function used to initialize I2C protocol to retrieve data from desired registers                    
+  
+  //*************************
+  //Initialize ROS variables
+  //*************************
+  staying = true; //Start with staying mode
+  goingDown = false;
+  goingUp = false;
 
- for (i = 0; i < 2000; i++){ //Function to add up 2000 readings for X-Z Gyro
-  read_mpu_6050_data();
-  gyro_x_cal += xGyro;
-  gyro_y_cal += yGyro;
-  gyro_z_cal += zGyro;
-  delay(3);
- }
+  nh.initNode();
+  nh.subscribe(stateSubscriber);
+  nh.loginfo("Node initialized. Start gathering data for IMU...");
+  //*************************
 
-//Compute an average of the 2000 readings
- gyro_x_cal /= 2000;                                                  
- gyro_y_cal /= 2000;                                                  
- gyro_z_cal /= 2000;
+  setup_mpu_6050_registers();     //Function used to initialize I2C protocol to retrieve data from desired registers                    
+  
+  for (i = 0; i < 2000; i++){ //Function to add up 2000 readings for X-Z Gyro
+    read_mpu_6050_data();
+    gyro_x_cal += xGyro;
+    gyro_y_cal += yGyro;
+    gyro_z_cal += zGyro;
+    delay(3);
+  }
 
-//*************************
-//Initialize ROS variables
-//*************************
-staying = false;
-goingDown = false;
-goingUp = false;
+  //Compute an average of the 2000 readings
+  gyro_x_cal /= 2000;                                                  
+  gyro_y_cal /= 2000;                                                  
+  gyro_z_cal /= 2000;
 
-nh.initNode();
-nh.subscribe(stateSubscriber);
-nh.loginfo("node initialized");
-//*************************
+  
+  //*************************
+  //Output in ROS: Data is ready.
+  //*************************
+  nh.loginfo("Data is ready.");
+  nh.loginfo("Sub is staying. Waiting to receive data from other nodes...");
+  //*************************
 
- Serial.println(gyro_x_cal);
- loop_timer = micros();                                               //Reset the loop timer
-
+  Serial.println(gyro_x_cal);
+  loop_timer = micros();                                               //Reset the loop timer
 
 }
 
@@ -166,28 +180,23 @@ void loop() {
   //*******************************
   if(goingDown){
     goingDownward();
-    nh.loginfo("going down");
   }
   else if(staying){
     stayLeveling();
-    nh.loginfo("staying");
   }
   else if(goingUp){
     goingUpward();
-    nh.loginfo("going up");
   }
   nh.spinOnce();
   //*******************************
 
     
   Serial.println(angle_pitch_output);
-  delay(3);
+  delay(100); //******************change from 3 to 100, needs to confirm with Erick
  
     
   while(micros() - loop_timer < 11000);                                 //Wait until the loop_timer reaches 4000us (250Hz) before starting the next loop
   loop_timer = micros();       
-
- 
  
   }
 
