@@ -36,7 +36,7 @@ int main(int argc, char **argv){
   ros::init(argc, argv, "master");
   ros::NodeHandle node;
   ros::Subscriber depthSubscriber = node.subscribe("depth", 100, depthCallback);
-  ros::Publisher motorStatePublisher = node.advertise<std_msgs::Int32>("motor_state", 100);
+  ros::Publisher motorStatePublisher = node.advertise<std_msgs::Int32>("height_control", 100);
   ros::Rate loop_rate(100);
   
   ROS_INFO("Master starts running. Sub staying still...");

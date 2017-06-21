@@ -1,7 +1,9 @@
 #include <ros.h>
 #include <std_msgs/Int32.h>
+#include <auv_cal_state_la_2017/HControl.h>
 #include <Servo.h>
 #include <Wire.h>
+#include "MS5837.h"
 
 //Initialization of the Servo's for Blue Robotics Motors 
 Servo T1;     //right front
@@ -10,58 +12,64 @@ Servo T3;     //left front
 Servo T4;     //left back
 
 int  i; 
-long gyro_x_cal, gyro_y_cal, gyro_z_cal;
 int  xGyro, yGyro, zGyro, temperature;
-long xAccl, yAccl, zAccl, acc_total_vector;
-long loop_timer;
-float angle_pitch, angle_roll;
-char string[8];
 int angle_pitch_buffer, angle_roll_buffer;
-boolean set_gyro_angles;
+char string[8];
+long loop_timer;
+long gyro_x_cal, gyro_y_cal, gyro_z_cal;
+long xAccl, yAccl, zAccl, acc_total_vector;
+float angle_pitch, angle_roll;
 float angle_roll_acc, angle_pitch_acc;
 float angle_pitch_output, angle_roll_output;
+boolean set_gyro_angles;
+
+MS5837 sensor;
+int PWM_Motors;
+int assignedDepth;
+float dutyCycl;
+float feetDepth_read;
 
 
 //**********************
 //Initialize ROS node
 //**********************
-bool staying;
-bool goingUp;
-bool goingDown;
-bool changeState;
-int currentState;
+float bottomDepth = 12;
 
 ros::NodeHandle nh;
 
-void motorStateCallback(const std_msgs::Int32& state) {
-  if(currentState != state.data){
-    changeState = true;
+void motorStateCallback(const auv_cal_state_la_2017::HControl& hControl) {
+
+  char depthChar[6];
+  float depth = hControl.depth;  
+  dtostrf(depth, 4, 2, depthChar);
+  
+  if(hControl.state == 0){  
+    if(depth == -1 || depth + feetDepth_read >= bottomDepth){
+      assignedDepth = bottomDepth;
+    }else {
+      assignedDepth = feetDepth_read + depth;
+    }
+    nh.loginfo("Going down...");
+    nh.loginfo(depthChar);
+    nh.loginfo("ft...(-1 means infinite)");
   }
-  if(changeState){
-    currentState = state.data;
-    changeState = false;
-    if(state.data == 0){
-      goingDown = true;
-      staying = false;
-      goingUp = false;
-      nh.loginfo("Going down...");
-    }
-    else if(state.data == 1){
-      goingDown = false;
-      staying = true;
-      goingUp = false;
-      nh.loginfo("Staying...");
-    }
-    else if(state.data == 2){
-      goingDown = false;
-      staying = false;
-      goingUp = true;
-      nh.loginfo("Going up...");
-    }
+  else if(hControl.state == 1){
+    assignedDepth = feetDepth_read;
+    nh.loginfo("Staying...");
+  }
+  else if(hControl.state == 2){
+    if(depth == -1 || depth >= feetDepth_read){
+      assignedDepth = 0;
+    }else {
+      assignedDepth = feetDepth_read - depth;
+    } 
+    nh.loginfo("Going up...");
+    nh.loginfo(depthChar);
+    nh.loginfo("ft...(-1 means infinite)");
   }
 }
 
-ros::Subscriber<std_msgs::Int32> stateSubscriber("motor_state", &motorStateCallback);
+ros::Subscriber<auv_cal_state_la_2017::HControl> stateSubscriber("height_control", &motorStateCallback);
 //***********************
 
 
@@ -74,10 +82,6 @@ void setup() {
   pinMode(3, OUTPUT); //2 on motor
   pinMode(4, OUTPUT); //3 on motor
   pinMode(5, OUTPUT); //4 on motor
-  /*pinMode(6, OUTPUT); //1 on motor reverse 
-  pinMode(7, OUTPUT); //2 on motor reverse
-  pinMode(8, OUTPUT); //3 on motor reverse
-  pinMode(9, OUTPUT);//4 on motor reverse*/
 
  //Pelican Motors activation of motors (initialization of pins to servo motors)
   T1.attach(2); //right front servo
@@ -102,11 +106,6 @@ void setup() {
   //*************************
   //Initialize ROS variables
   //*************************
-  staying = true; //Start with staying mode
-  goingDown = false;
-  goingUp = false;
-  changeState = false;
-  currentState = 1;
 
   nh.initNode();
   nh.subscribe(stateSubscriber);
@@ -114,6 +113,10 @@ void setup() {
   //*************************
 
   setup_mpu_6050_registers();     //Function used to initialize I2C protocol to retrieve data from desired registers                    
+
+  sensor.init();  
+  sensor.setFluidDensity(997); // kg/m^3 (997 freshwater, 1029 for seawater)
+  feetDepth_read = 0;
   
   for (i = 0; i < 2000; i++){ //Function to add up 2000 readings for X-Z Gyro
     read_mpu_6050_data();
@@ -142,8 +145,197 @@ void setup() {
 }
 
 void loop() {
-  read_mpu_6050_data();                                              //Read the raw data from the gyroscope
 
+
+  IMUcomputation();
+
+  //*******************************
+  //React and leveling with corresponding state
+  //*******************************
+  feetDepth_read =  sensor.depth() * 3.28;                             //1 meter = 3.28 feet
+  dutyCycl = (abs(assignedDepth - feetDepth_read)/ 12.0);              //function to get a percentage of assigned height to the feet read
+  PWM_Motors = dutyCycl * 350;                                         //PWM for motors are between 1500 - 1900; difference is 400 
+
+  //going down
+  if (feetDepth_read < assignedDepth){   
+    goingDownward();
+  }
+  //going up
+  else if (feetDepth_read > assignedDepth){   
+    goingUpward();   
+  }
+  //staying
+  else {   
+    stayLeveling();
+  }
+  
+  nh.spinOnce();
+  //*******************************
+
+    
+  Serial.println(angle_pitch_output);
+  delay(100);
+ 
+    
+  while(micros() - loop_timer < 11000);                                 //Wait until the loop_timer reaches 4000us (250Hz) before starting the next loop
+  loop_timer = micros();       
+ 
+  }
+
+
+//*****************************
+//Leveling while staying
+//*****************************
+void stayLeveling(){
+  
+  for (i = 0; (2 * i) < 90; i++){ //loop will start from 0 degrees -> 90 degrees 
+    //right
+    if((angle_roll_output > 2*i) && (angle_roll_output < (2*i + 2))){
+      //Boost the right motors
+      T2.writeMicroseconds(1500 + i*8);
+      T3.writeMicroseconds(1500 - i*8);
+      //Downgrade the left motors
+      T1.writeMicroseconds(1500 + i*4);
+      T4.writeMicroseconds(1500 - i*4);
+    }
+    //left
+    if((angle_roll_output < -1 *(2*i)) && (angle_roll_output > -1 *(2*i + 2))){
+      //Boost the left motors
+      T1.writeMicroseconds(1500 - i*8);
+      T4.writeMicroseconds(1500 + i*8);
+      //Downgrade the right motors
+      T2.writeMicroseconds(1500 - i*4);
+      T3.writeMicroseconds(1500 + i*4);
+    }
+    //backward
+    if((angle_pitch_output > 2*i) && (angle_pitch_output < (2*i + 2))){
+      //Boost the back motors
+      T3.writeMicroseconds(1500 - i*8);
+      T4.writeMicroseconds(1500 + i*8);
+      //Downgrade the front motors
+      T1.writeMicroseconds(1500 + i*4);
+      T2.writeMicroseconds(1500 - i*4);  
+    }
+    //forward
+    if((angle_pitch_output < -1*( 2*i)) && (angle_pitch_output > -1 *(2*i + 2))){
+      //Boost the front motors
+      T1.writeMicroseconds(1500 - i*8);
+      T2.writeMicroseconds(1500 + i*8);
+      //Downgrade the back motors
+      T3.writeMicroseconds(1500 + i*4);
+      T4.writeMicroseconds(1500 - i*4);
+    }
+  }
+  
+}
+
+
+//*****************************
+//Going upward
+//*****************************
+void goingUpward(){
+  
+  int levelPower = (400 - PWM_Motors) / 45;
+  int reversedLevelPower = (PWM_Motors / 45) * (-1);
+
+  for(i = 0; (2 * i) < 90; i++){
+    //right
+    if((angle_roll_output > 2 * i) && (angle_roll_output < (2 * i + 2))){
+      //Boost the right motors
+      T2.writeMicroseconds(1500 + PWM_Motors + i * levelPower);
+      T3.writeMicroseconds(1500 - PWM_Motors - i * levelPower);
+      //Downgrade the left motors
+      T1.writeMicroseconds(1500 - PWM_Motors - i * reversedLevelPower);
+      T4.writeMicroseconds(1500 + PWM_Motors + i * reversedLevelPower);
+    }
+    //left
+    if((angle_roll_output < -1 *( 2 * i)) && (angle_roll_output > -1 * (2 * i + 2))){
+      //Boost the left motors
+      T1.writeMicroseconds(1500 - PWM_Motors - i * levelPower);
+      T4.writeMicroseconds(1500 + PWM_Motors + i * levelPower);
+      //Downgrade the right motors
+      T2.writeMicroseconds(1500 + PWM_Motors + i * reversedLevelPower);
+      T3.writeMicroseconds(1500 - PWM_Motors - i * reversedLevelPower);
+    }
+    //backward
+    if((angle_pitch_output > 2 * i) && (angle_pitch_output < (2 * i + 2))){ 
+      //Boost the back motors
+      T3.writeMicroseconds(1500 - PWM_Motors - i * levelPower);
+      T4.writeMicroseconds(1500 + PWM_Motors + i * levelPower);
+      //Downgrade the front motors
+      T1.writeMicroseconds(1500 - PWM_Motors - i * reversedLevelPower);
+      T2.writeMicroseconds(1500 + PWM_Motors + i * reversedLevelPower);  
+    }
+    //forward
+    if((angle_pitch_output < -1 * (2 * i)) && (angle_pitch_output > -1 * (2 * i + 2))){
+      //Boost the front motors
+      T1.writeMicroseconds(1500 - PWM_Motors - i * levelPower);
+      T2.writeMicroseconds(1500 + PWM_Motors + i * levelPower);
+      //Downgrade the back motors
+      T3.writeMicroseconds(1500 - PWM_Motors - i * reversedLevelPower);
+      T4.writeMicroseconds(1500 + PWM_Motors + i * reversedLevelPower);
+    }
+  }
+    
+}
+
+//*****************************
+//Going downward
+//*****************************
+void goingDownward(){
+  
+  PWM_Motors = -PWM_Motors;
+  int levelPower = ((400 + PWM_Motors) / 45) * (-1);
+  int reversedLevelPower = ((-1) * PWM_Motors) / 45;
+
+  for (i = 0; (2 * i) < 90; i++){ //loop will start from 0 degrees -> 90 degrees 
+    //right
+    if((angle_roll_output > 2*i) && (angle_roll_output < (2*i + 2))){
+      //Boost the left motors
+      T1.writeMicroseconds(1500 - PWM_Motors - i * levelPower);
+      T4.writeMicroseconds(1500 + PWM_Motors + i * levelPower);
+      //Downgrade the right motors
+      T2.writeMicroseconds(1500 + PWM_Motors + i * reversedLevelPower);
+      T3.writeMicroseconds(1500 - PWM_Motors - i * reversedLevelPower);       
+    }
+    //left
+    if((angle_roll_output < -1 *(2*i)) && (angle_roll_output > -1 *(2*i + 2))){
+      //Boost the right motors
+      T2.writeMicroseconds(1500 + PWM_Motors + i * levelPower);
+      T3.writeMicroseconds(1500 - PWM_Motors - i * levelPower);
+      //Downgrade the left motors
+      T1.writeMicroseconds(1500 - PWM_Motors - i * reversedLevelPower);
+      T4.writeMicroseconds(1500 + PWM_Motors + i * reversedLevelPower);     
+    }
+    //backward
+    if((angle_pitch_output > 2*i) && (angle_pitch_output < (2*i + 2))){
+      //Boost the front motors
+      T1.writeMicroseconds(1500 - PWM_Motors - i * levelPower);
+      T2.writeMicroseconds(1500 + PWM_Motors + i * levelPower); 
+      //Downgrade the back motors
+      T3.writeMicroseconds(1500 - PWM_Motors - i * reversedLevelPower);
+      T4.writeMicroseconds(1500 + PWM_Motors + i * reversedLevelPower);       
+    }
+    //forward
+    if((angle_pitch_output < -1*( 2*i)) && (angle_pitch_output > -1 *(2*i + 2))){
+      //Boost the back motors
+      T3.writeMicroseconds(1500 - PWM_Motors - i * levelPower);
+      T4.writeMicroseconds(1500 + PWM_Motors + i * levelPower);
+      //Downgrade the front motors
+      T1.writeMicroseconds(1500 - PWM_Motors - i * reversedLevelPower);
+      T2.writeMicroseconds(1500 + PWM_Motors + i * reversedLevelPower);      
+    }
+  }
+    
+}
+
+
+//*****************************
+//IMU computation
+//*****************************
+void IMUcomputation(){
+  
+  read_mpu_6050_data();                                              //Read the raw data from the gyroscope
   
   xGyro -= gyro_x_cal;                                               //Calibration to set xGyro to be 0
   yGyro -= gyro_y_cal;                                               //Calibration to set yGyro to be 0
@@ -166,8 +358,8 @@ void loop() {
   angle_roll_acc = asin((float)xAccl/acc_total_vector)* -57.296;       //Calculate the roll angle
   
   //Place the MPU-6050 spirit level(flat) and note the values in the following two lines for calibration
-  angle_pitch_acc -= -0.87;                                             //Accelerometer calibration value for pitch
-  angle_roll_acc -= -3.8;                                               //Accelerometer calibration value for roll
+  angle_pitch_acc -= -0.87;                                            //Accelerometer calibration value for pitch
+  angle_roll_acc -= -3.8;                                              //Accelerometer calibration value for roll
 
   if(set_gyro_angles){                                                 //If the IMU is already started
     angle_pitch = angle_pitch * 0.9996 + angle_pitch_acc * 0.0004;     //Correct the drift of the gyro pitch angle with the accelerometer pitch angle
@@ -183,192 +375,7 @@ void loop() {
   angle_pitch_output = angle_pitch_output * 0.9 + angle_pitch * 0.1;   //Take 90% of the output pitch value and add 10% of the raw pitch value
   angle_roll_output = angle_roll_output * 0.9 + angle_roll * 0.1;      //Take 90% of the output roll value and add 10% of the raw roll value
 
-
-  //*******************************
-  //React with corresponding state
-  //*******************************
-  if(goingDown){
-    goingDownward();
-  }
-  else if(staying){
-    stayLeveling();
-  }
-  else if(goingUp){
-    goingUpward();
-  }
-  nh.spinOnce();
-  //*******************************
-
-    
-  Serial.println(angle_pitch_output);
-  delay(100); //******************change from 3 to 100, needs to confirm with Erick
- 
-    
-  while(micros() - loop_timer < 11000);                                 //Wait until the loop_timer reaches 4000us (250Hz) before starting the next loop
-  loop_timer = micros();       
- 
-  }
-
-//*****************************
-//Leveling while staying
-//*****************************
-void stayLeveling(){
-  //Note that for PWM on arduino, it ranges from 0 - 255. The loop only executing 45 times, dividing 255 by 45 yields 5. This will increment the PWM by 5 every 2 degrees. 
-  //**************************
-  //Warning::Data might be overwrited
-  //**************************
-  for (i = 0; (2 * i) < 90; i++){ //loop will start from 0 degrees -> 90 degrees 
-    //right
-    if((angle_roll_output > 2*i) && (angle_roll_output < (2*i + 2))){ //check the roll to the right (positive degree)
-      //analogWrite(2, i*5);     //turn on right motors to 5 PWM ~ 2% duty cycle
-      //analogWrite(3, i*5);
-      //analogWrite(8, i*2);     //turn the left motors in reverse to 2 PWM ~ 1% duty cycle (half of duty cycle from right side)
-      //analogWrite(9, i*2);
-      T2.writeMicroseconds(1500 + i*8);
-      T3.writeMicroseconds(1500 - i*8);
-      T1.writeMicroseconds(1500 + i*4);
-      T4.writeMicroseconds(1500 - i*4);
-    }
-    //left
-    if((angle_roll_output < -1 *(2*i)) && (angle_roll_output > -1 *(2*i + 2))){//check the roll to the left (negative degree)
-      /*analogWrite(4, i*5);       //turn on left motors to 5 PWM ~ 2% duty cycle
-      analogWrite(5 ,i*5);
-      analogWrite(6, i*2);       //turn the right motors in reverse to 2 PWM ~ 1% duty cycle (half of duty cycle from right side)
-      analogWrite(7, i*2);*/
-      T1.writeMicroseconds(1500 - i*8);
-      T4.writeMicroseconds(1500 + i*8);
-      T2.writeMicroseconds(1500 - i*4);
-      T3.writeMicroseconds(1500 + i*4);
-    }
-    //backward
-    if((angle_pitch_output > 2*i) && (angle_pitch_output < (2*i + 2))){
-      /*analogWrite(3, i*5);       //turn on back motors to 5 PWM ~ 2% duty cycle
-      analogWrite(5 ,i*5);
-      analogWrite(6, i*2);       //turn the front motors in reverse to 2 PWM ~ 1% duty cycle (half of duty cycle from right side)
-      analogWrite(8, i*2);  */   
-      T3.writeMicroseconds(1500 - i*8);
-      T4.writeMicroseconds(1500 + i*8);
-      T1.writeMicroseconds(1500 + i*4);
-      T2.writeMicroseconds(1500 - i*4);  
-    }
-    //forward
-    if((angle_pitch_output < -1*( 2*i)) && (angle_pitch_output > -1 *(2*i + 2))){
-      /*analogWrite(2, i*5);       //turn on front motors to 5 PWM ~ 2% duty cycle
-      analogWrite(4 ,i*5);
-      analogWrite(7, i*2);       //turn the back motors in reverse to 2 PWM ~ 1% duty cycle (half of duty cycle from right side)
-      analogWrite(9, i*2);*/
-      T1.writeMicroseconds(1500 - i*8);
-      T2.writeMicroseconds(1500 + i*8);
-      T3.writeMicroseconds(1500 + i*4);
-      T4.writeMicroseconds(1500 - i*4);
-    }
-  }
 }
-
-//*****************************
-//Going upward
-//*****************************
-void goingUpward(){
-  //Initialize the power variables
-  int power = 100;
-  int levelPower = (400 - power) / 45;
-  int reversedLevelPower = (power / 45) * (-1);
-
-  //**************************
-  //Warning::Data might be overwrited
-  //**************************
-  for (i = 0; (2 * i) < 90; i++){
-    //right
-    if((angle_roll_output > 2*i) && (angle_roll_output < (2*i + 2))){
-      //Boost the right motors
-      T2.writeMicroseconds(1500 + power + i * levelPower);
-      T3.writeMicroseconds(1500 - power - i * levelPower);
-      //Downgrade the left motors
-      T1.writeMicroseconds(1500 - power - i * reversedLevelPower);
-      T4.writeMicroseconds(1500 + power + i * reversedLevelPower);
-    }
-    //left
-    if((angle_roll_output < -1 *(2*i)) && (angle_roll_output > -1 *(2*i + 2))){
-      //Boost the left motors
-      T1.writeMicroseconds(1500 - power - i * levelPower);
-      T4.writeMicroseconds(1500 + power + i * levelPower);
-      //Downgrade the right motors
-      T2.writeMicroseconds(1500 + power + i * reversedLevelPower);
-      T3.writeMicroseconds(1500 - power - i * reversedLevelPower);
-    }
-    //backward
-    if((angle_pitch_output > 2*i) && (angle_pitch_output < (2*i + 2))){ 
-      //Boost the back motors
-      T3.writeMicroseconds(1500 - power - i * levelPower);
-      T4.writeMicroseconds(1500 + power + i * levelPower);
-      //Downgrade the front motors
-      T1.writeMicroseconds(1500 - power - i * reversedLevelPower);
-      T2.writeMicroseconds(1500 + power + i * reversedLevelPower);  
-    }
-    //forward
-    if((angle_pitch_output < -1*( 2*i)) && (angle_pitch_output > -1 *(2*i + 2))){
-      //Boost the front motors
-      T1.writeMicroseconds(1500 - power - i * levelPower);
-      T2.writeMicroseconds(1500 + power + i * levelPower);
-      //Downgrade the back motors
-      T3.writeMicroseconds(1500 - power - i * reversedLevelPower);
-      T4.writeMicroseconds(1500 + power + i * reversedLevelPower);
-    }
-  }
-}
-
-//*****************************
-//Going downward
-//*****************************
-void goingDownward(){
-  //Initialize the power variables
-  int power = -100;
-  int levelPower = ((400 + power) / 45) * (-1);
-  int reversedLevelPower = ((-1) * power) / 45;
-   
-  //**************************
-  //Warning::Data might be overwrited
-  //**************************
-  for (i = 0; (2 * i) < 90; i++){ //loop will start from 0 degrees -> 90 degrees 
-    //right
-    if((angle_roll_output > 2*i) && (angle_roll_output < (2*i + 2))){
-      //Boost the left motors
-      T1.writeMicroseconds(1500 - power - i * levelPower);
-      T4.writeMicroseconds(1500 + power + i * levelPower);
-      //Downgrade the right motors
-      T2.writeMicroseconds(1500 + power + i * reversedLevelPower);
-      T3.writeMicroseconds(1500 - power - i * reversedLevelPower);       
-    }
-    //left
-    if((angle_roll_output < -1 *(2*i)) && (angle_roll_output > -1 *(2*i + 2))){
-      //Boost the right motors
-      T2.writeMicroseconds(1500 + power + i * levelPower);
-      T3.writeMicroseconds(1500 - power - i * levelPower);
-      //Downgrade the left motors
-      T1.writeMicroseconds(1500 - power - i * reversedLevelPower);
-      T4.writeMicroseconds(1500 + power + i * reversedLevelPower);     
-    }
-    //backward
-    if((angle_pitch_output > 2*i) && (angle_pitch_output < (2*i + 2))){
-      //Boost the front motors
-      T1.writeMicroseconds(1500 - power - i * levelPower);
-      T2.writeMicroseconds(1500 + power + i * levelPower); 
-      //Downgrade the back motors
-      T3.writeMicroseconds(1500 - power - i * reversedLevelPower);
-      T4.writeMicroseconds(1500 + power + i * reversedLevelPower);       
-    }
-    //forward
-    if((angle_pitch_output < -1*( 2*i)) && (angle_pitch_output > -1 *(2*i + 2))){
-      //Boost the back motors
-      T3.writeMicroseconds(1500 - power - i * levelPower);
-      T4.writeMicroseconds(1500 + power + i * levelPower);
-      //Downgrade the front motors
-      T1.writeMicroseconds(1500 - power - i * reversedLevelPower);
-      T2.writeMicroseconds(1500 + power + i * reversedLevelPower);      
-    }
-  }
-}
-
 
 void read_mpu_6050_data(){
 
