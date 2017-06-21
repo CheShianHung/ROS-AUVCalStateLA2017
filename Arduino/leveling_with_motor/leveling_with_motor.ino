@@ -1,5 +1,6 @@
 #include <ros.h>
 #include <std_msgs/Int32.h>
+#include <std_msgs/Float32.h>
 #include <auv_cal_state_la_2017/HControl.h>
 #include <Servo.h>
 #include <Wire.h>
@@ -34,43 +35,93 @@ float feetDepth_read;
 //Initialize ROS node
 //**********************
 float bottomDepth = 12;
+bool isGoingUp;
+bool isGoingDown;
 
 ros::NodeHandle nh;
+std_msgs::Float32 currentDepth;
+auv_cal_state_la_2017::HControl hControlStatus;
 
-void motorStateCallback(const auv_cal_state_la_2017::HControl& hControl) {
+
+// Publish to Topic height_control_status
+// Description: The node will publish the current/received control 
+//   status to master whenever it receives any command from topic 
+//   height_control.
+
+ros::Publisher hControlPublisher("height_control_status", &hControlStatus);
+
+
+// Publish to Topic current_depth
+// Description: The node will publish the currentDepth to master 
+//   for every loop.
+
+ros::Publisher currentDepthPublisher("current_depth", &currentDepth);
+
+
+// Subscribe from Topic height_control
+// hControl contains two variables: (int)state, (float)depth
+// state: the direction (0 = going down, 1 = staying, 2 = going up)
+// depth: how far is the sub going
+// example: going up 2 ft (state = 0, depth = 2) 
+// Description: If depth is -1, it means either all the way up or 
+//   all the way down. When state is 1, it either asks the sub to 
+//   stay or interrupts the  previous command and force the sub to 
+//   stay.Otherwise, the sub will not be interrupt until it finishes 
+//   the current command.
+
+void hControlCallback(const auv_cal_state_la_2017::HControl& hControl) {
 
   char depthChar[6];
   float depth = hControl.depth;  
   dtostrf(depth, 4, 2, depthChar);
-  
+
   if(hControl.state == 0){  
-    if(depth == -1 || depth + feetDepth_read >= bottomDepth){
-      assignedDepth = bottomDepth;
-    }else {
-      assignedDepth = feetDepth_read + depth;
+    if(!isGoingUp && !isGoingDown){
+      if(depth == -1 || depth + feetDepth_read >= bottomDepth){
+        assignedDepth = bottomDepth;
+      }else {
+        assignedDepth = feetDepth_read + depth;
+      }
+      isGoingDown = true;
+      nh.loginfo("Going down...");
+      nh.loginfo(depthChar);
+      nh.loginfo("ft...(-1 means infinite)");
+      hControlStatus.state = 0;
+      hControlStatus.depth = depth;
+    }else{
+      nh.loginfo("Sub is still running. Command abort.");
     }
-    nh.loginfo("Going down...");
-    nh.loginfo(depthChar);
-    nh.loginfo("ft...(-1 means infinite)");
   }
   else if(hControl.state == 1){
     assignedDepth = feetDepth_read;
+    isGoingUp = false;
+    isGoingDown = false;
     nh.loginfo("Staying...");
+    hControlStatus.state = 1;
+    hControlStatus.depth = depth;
   }
   else if(hControl.state == 2){
-    if(depth == -1 || depth >= feetDepth_read){
-      assignedDepth = 0;
-    }else {
-      assignedDepth = feetDepth_read - depth;
-    } 
-    nh.loginfo("Going up...");
-    nh.loginfo(depthChar);
-    nh.loginfo("ft...(-1 means infinite)");
+    if(!isGoingUp && !isGoingDown){
+      if(depth == -1 || depth >= feetDepth_read){
+        assignedDepth = 0;
+      }else {
+        assignedDepth = feetDepth_read - depth;
+      } 
+      isGoingUp = true;
+      nh.loginfo("Going up...");
+      nh.loginfo(depthChar);
+      nh.loginfo("ft...(-1 means infinite)");
+      hControlStatus.state = 0;
+      hControlStatus.depth = depth;
+    }else{
+      nh.loginfo("Sub is still running.Command abort.");
+    }
   }
+  hControlPublisher.publish(&hControlStatus);
+  
 }
 
-ros::Subscriber<auv_cal_state_la_2017::HControl> stateSubscriber("height_control", &motorStateCallback);
-//***********************
+ros::Subscriber<auv_cal_state_la_2017::HControl> hControlSubscriber("height_control", &hControlCallback);
 
 
 void setup() {
@@ -106,9 +157,21 @@ void setup() {
   //*************************
   //Initialize ROS variables
   //*************************
-
+  isGoingUp = false;
+  isGoingDown = false;
+  
+  //Testing------------------
+  feetDepth_read = 0;
+  
+  assignedDepth = feetDepth_read;
+  currentDepth.data = feetDepth_read;
+  hControlStatus.state = 1;
+  hControlStatus.depth = 0;
+  
   nh.initNode();
-  nh.subscribe(stateSubscriber);
+  nh.subscribe(hControlSubscriber);
+  nh.advertise(hControlPublisher);
+  nh.advertise(currentDepthPublisher);
   nh.loginfo("Node initialized. Start gathering data for IMU...");
   //*************************
 
@@ -137,6 +200,8 @@ void setup() {
   //*************************
   nh.loginfo("Data is ready.");
   nh.loginfo("Sub is staying. Waiting to receive data from other nodes...");
+  hControlPublisher.publish(&hControlStatus);
+  hControlPublisher.publish(&currentDepth);
   //*************************
 
   Serial.println(gyro_x_cal);
@@ -158,19 +223,34 @@ void loop() {
 
   //going down
   if (feetDepth_read < assignedDepth){   
+    isGoingUp = false;
     goingDownward();
+    
+    //Testing--------------------------
+    feetDepth_read += 0.1;
+    
   }
   //going up
-  else if (feetDepth_read > assignedDepth){   
-    goingUpward();   
+  else if (feetDepth_read > assignedDepth){
+    isGoingDown = false;   
+    goingUpward(); 
+    
+    //Testing---------------------------
+    feetDepth_read -= 0.1;
+      
   }
   //staying
   else {   
+    isGoingUp = false;
+    isGoingDown = false;
     stayLeveling();
   }
+
+  //Update and publish current depth value to master
+  currentDepth.data = feetDepth_read;
+  currentDepthPublisher.publish(&currentDepth);
   
   nh.spinOnce();
-  //*******************************
 
     
   Serial.println(angle_pitch_output);
