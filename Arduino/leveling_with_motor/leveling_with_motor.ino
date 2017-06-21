@@ -26,8 +26,8 @@ boolean set_gyro_angles;
 
 MS5837 sensor;
 int PWM_Motors;
-int assignedDepth;
 float dutyCycl;
+float assignedDepth;
 float feetDepth_read;
 
 
@@ -40,6 +40,10 @@ bool isGoingDown;
 
 ros::NodeHandle nh;
 std_msgs::Float32 currentDepth;
+
+//Testing------------------------
+//std_msgs::Float32 ad;
+
 auv_cal_state_la_2017::HControl hControlStatus;
 
 
@@ -50,6 +54,8 @@ auv_cal_state_la_2017::HControl hControlStatus;
 
 ros::Publisher hControlPublisher("height_control_status", &hControlStatus);
 
+//Testing-------------------------------------
+//ros::Publisher assignedDepthPublisher("assigned_depth", &ad);
 
 // Publish to Topic current_depth
 // Description: The node will publish the currentDepth to master 
@@ -77,10 +83,10 @@ void hControlCallback(const auv_cal_state_la_2017::HControl& hControl) {
 
   if(hControl.state == 0){  
     if(!isGoingUp && !isGoingDown){
-      if(depth == -1 || depth + feetDepth_read >= bottomDepth){
+      if(depth == -1 || depth + assignedDepth >= bottomDepth){
         assignedDepth = bottomDepth;
       }else {
-        assignedDepth = feetDepth_read + depth;
+        assignedDepth = assignedDepth + depth;
       }
       isGoingDown = true;
       nh.loginfo("Going down...");
@@ -102,16 +108,16 @@ void hControlCallback(const auv_cal_state_la_2017::HControl& hControl) {
   }
   else if(hControl.state == 2){
     if(!isGoingUp && !isGoingDown){
-      if(depth == -1 || depth >= feetDepth_read){
+      if(depth == -1 || depth >= assignedDepth){
         assignedDepth = 0;
       }else {
-        assignedDepth = feetDepth_read - depth;
+        assignedDepth = assignedDepth - depth;
       } 
       isGoingUp = true;
       nh.loginfo("Going up...");
       nh.loginfo(depthChar);
       nh.loginfo("ft...(-1 means infinite)");
-      hControlStatus.state = 0;
+      hControlStatus.state = 2;
       hControlStatus.depth = depth;
     }else{
       nh.loginfo("Sub is still running.Command abort.");
@@ -172,6 +178,10 @@ void setup() {
   nh.subscribe(hControlSubscriber);
   nh.advertise(hControlPublisher);
   nh.advertise(currentDepthPublisher);
+
+  //Testing-----------------------
+//  nh.advertise(assignedDepthPublisher);
+
   nh.loginfo("Node initialized. Start gathering data for IMU...");
   //*************************
 
@@ -199,9 +209,9 @@ void setup() {
   //Output in ROS: Data is ready.
   //*************************
   nh.loginfo("Data is ready.");
-  nh.loginfo("Sub is staying. Waiting to receive data from other nodes...");
-  hControlPublisher.publish(&hControlStatus);
-  hControlPublisher.publish(&currentDepth);
+  nh.loginfo("Sub is staying. Waiting to receive data from master...");
+//  hControlPublisher.publish(&hControlStatus);
+//  currentDepthPublisher.publish(&currentDepth);
   //*************************
 
   Serial.println(gyro_x_cal);
@@ -217,7 +227,10 @@ void loop() {
   //*******************************
   //React and leveling with corresponding state
   //*******************************
-  feetDepth_read =  sensor.depth() * 3.28;                             //1 meter = 3.28 feet
+
+  //Testing----------------------
+  //feetDepth_read =  sensor.depth() * 3.28;                             //1 meter = 3.28 feet
+  
   dutyCycl = (abs(assignedDepth - feetDepth_read)/ 12.0);              //function to get a percentage of assigned height to the feet read
   PWM_Motors = dutyCycl * 350;                                         //PWM for motors are between 1500 - 1900; difference is 400 
 
@@ -227,7 +240,7 @@ void loop() {
     goingDownward();
     
     //Testing--------------------------
-    feetDepth_read += 0.1;
+    feetDepth_read += 0.05;
     
   }
   //going up
@@ -236,7 +249,7 @@ void loop() {
     goingUpward(); 
     
     //Testing---------------------------
-    feetDepth_read -= 0.1;
+    feetDepth_read -= 0.05;
       
   }
   //staying
@@ -249,6 +262,10 @@ void loop() {
   //Update and publish current depth value to master
   currentDepth.data = feetDepth_read;
   currentDepthPublisher.publish(&currentDepth);
+
+  //Testing------------------------
+//  ad.data = assignedDepth;
+//  assignedDepthPublisher.publish(&ad);
   
   nh.spinOnce();
 
