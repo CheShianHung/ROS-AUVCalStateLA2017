@@ -30,10 +30,20 @@ void hControlStatusCallback(const auv_cal_state_la_2017::HControl);
 void checkMotorNode();
 
 //Regular variables
+//float currentTargetDepth;
+
+//Checking variables
 bool checkingCurrentDepth;
 bool checkingHeightControl;
 bool motorNodeIsReady;
 bool allNodesAreReady;
+
+//Task variables
+bool task0Finished;
+bool task1Finished;
+bool task1ReceivedFromMotor;
+bool task2Finished;
+bool task2ReceivedFromMotor;
 
 int main(int argc, char **argv){
   
@@ -45,10 +55,19 @@ int main(int argc, char **argv){
   ros::Publisher hControlPublisher = node.advertise<auv_cal_state_la_2017::HControl>("height_control", 100);
   ros::Rate loop_rate(100);
 
+  //currentTargetDepth = 0;
+
   checkingCurrentDepth = false;
   checkingHeightControl = false;
   motorNodeIsReady = false;
   allNodesAreReady = false;
+
+  task0Finished = false;
+  task1Finished = false;
+  task1ReceivedFromMotor = false;
+  task2Finished = false;
+  task2ReceivedFromMotor = false;
+
 
   ROS_INFO("Master starts running. Checking each topic...");
 
@@ -64,11 +83,44 @@ int main(int argc, char **argv){
      
     ros::spinOnce();
     
-
     if(motorNodeIsReady){
       allNodesAreReady = true;
     }
     
+    loop_rate.sleep();
+  }
+  
+
+  //Task 0 - checking barometer (current_depth) to make sure the sub is under water
+  while(ros::ok() && !task0Finished){
+    ros::spinOnce();
+    loop_rate.sleep();
+  }
+
+  
+  //Task 1 - submerging down 8 ft (from 0 ft to 8 ft)
+  while(ros::ok() && !task1Finished){
+    //Sending command to motor node...
+    if(!task1ReceivedFromMotor){
+      hControl.state = 0;
+      hControl.depth = 8;
+      hControlPublisher.publish(hControl);
+    }
+
+    ros::spinOnce();
+    loop_rate.sleep();
+  }
+
+  //Task 2 - emerging up 5 ft (from 8 ft to 3 ft)
+  while (ros::ok() && !task2Finished){
+    //Sending command to motor node...
+    if(!task2ReceivedFromMotor){
+      hControl.state = 2;
+      hControl.depth = 5;
+      hControlPublisher.publish(hControl);
+    }
+  
+    ros::spinOnce();
     loop_rate.sleep();
   }
 
@@ -92,8 +144,26 @@ void currentDepthCallback(const std_msgs::Float32& currentDepth){
     ROS_INFO("current_depth is ready.");
     checkMotorNode();
   }
-  else{
-    //While running...
+  //Task 0 - Submerge under water
+  else if(!task0Finished){
+    if(currentDepth.data > 0){
+       task0Finished = true;
+       ROS_INFO("Sub is now under water... Ready to get start...");
+    }
+  }
+  //Task 1 - Submerging 8 ft
+  else if(!task1Finished){
+    if(currentDepth.data >= 8){
+      task1Finished = true;
+      ROS_INFO("Task 1 completed! Sub is now 8 ft below the water");
+    }
+  }
+  //Task 2 - Emerging 5 ft
+  else if(!task2Finished){
+    if(currentDepth.data <= 3){
+      task2Finished = true;
+      ROS_INFO("Task 2 completed! Sub is now 3 ft below the water");
+    }
   }
 }
 
@@ -109,8 +179,24 @@ void hControlStatusCallback(const auv_cal_state_la_2017::HControl hc){
     else{
       ROS_INFO("Cannot communicate with height_control...");
     }
-  }else {
-    //While running...
+  }
+  //Task 0 - Submerge under water
+  else if(!task0Finished){}
+  //Task 1 - Submerging 8 ft
+  else if(!task1Finished){
+    ROS_INFO("Sending command to motor nodes - submerge 8 ft");
+    if(hc.state == 0 && hc.depth == 8){
+      task1ReceivedFromMotor = true;
+      ROS_INFO("Task 1 message received - submerging...");
+    }
+  }
+  //Task 2 - Emerging 5 ft
+  else if(!task2Finished){
+    ROS_INFO("Sending commend to motor nodes - emerge 5 ft");
+    if(hc.state == 2 && hc.depth == 5){
+      task2ReceivedFromMotor = true;
+      ROS_INFO("Task 2 message received - emerging...");
+    }
   }
 }
 
