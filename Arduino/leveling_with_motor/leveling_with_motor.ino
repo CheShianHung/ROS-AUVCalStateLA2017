@@ -525,7 +525,7 @@ void goingDownward(){
 void heightControl(){
   
   //Going down
-  if (feetDepth_read < assignedDepth - 0.5){   
+  if (feetDepth_read < assignedDepth - 0.1){   
     goingDownward();
     
     //Testing--------------------------
@@ -533,7 +533,7 @@ void heightControl(){
     
   }  
   //Going up
-  else if (feetDepth_read > assignedDepth + 0.5){ 
+  else if (feetDepth_read > assignedDepth + 0.1){ 
     goingUpward(); 
     
     //Testing---------------------------
@@ -577,7 +577,7 @@ void rotationControl(){
       yaw +=360;
   }
   // AutoRotation to the assignedYaw with +- 1.5 degree error tolerance
-  else if(delta > 1.5){ 
+  else if(delta > 1){ 
     if(yaw + delta > rotationUpperBound){
       if(yaw - delta == assignedYaw) 
         rotateRightDynamically();
