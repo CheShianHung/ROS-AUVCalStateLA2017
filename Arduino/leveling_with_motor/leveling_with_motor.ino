@@ -5,9 +5,9 @@
 #include <auv_cal_state_la_2017/RControl.h>
 #include <Servo.h>
 #include <Wire.h>
-#include "MS5837.h"
 #include <SPI.h>
 #include <Wire.h>
+#include "MS5837.h"
 #include "SFE_LSM9DS0.h"
 
 #define GyroMeasError PI * (40.0f / 180.0f)       // gyroscope measurement error in rads/s (shown as 3 deg/s)
@@ -63,9 +63,7 @@ float dutyCycl_orient;
 float assignedYaw;
 
 
-//**********************
 //Initialize ROS node
-//**********************
 const float rotationUpperBound = 166.2;
 const float rotationLowerBound = -193.8;
 float bottomDepth = 12;
@@ -547,16 +545,15 @@ void heightControl(){
     if(isGoingUp || isGoingDown){
       isGoingUp = false;
       isGoingDown = false;
-      hControlStatus.state = 1;
-      hControlStatus.depth = assignedDepth;
-      hControlPublisher.publish(&hControlStatus);
       nh.loginfo("Assigned depth reached.");
     }
+    hControlStatus.state = 1;
+    hControlStatus.depth = 0;
+    hControlPublisher.publish(&hControlStatus);
     stayLeveling();
   }
   
 }
-
 
 //read rotation is from -193.8 to 166.2
 void rotationControl(){
@@ -605,11 +602,11 @@ void rotationControl(){
       isTurningLeft = false;
       keepTurningRight = false;
       keepTurningLeft = false;
-      rControlStatus.state = 1;
-      rControlStatus.rotation = 0;
-      rControlPublisher.publish(&rControlStatus);
       nh.loginfo("Assigned rotation reached.");
     }
+    rControlStatus.state = 1;
+    rControlStatus.rotation = 0;     
+    rControlPublisher.publish(&rControlStatus);
   }
   
 }
