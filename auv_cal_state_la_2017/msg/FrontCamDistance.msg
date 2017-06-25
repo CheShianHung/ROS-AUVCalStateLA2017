@@ -1,0 +1,3 @@
+float32 frontCamForwardDistance
+float32 frontCamHorizontalDistance
+float32 frontCamVerticalDistance

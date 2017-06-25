@@ -52,6 +52,10 @@ add_message_files(
   FILES
   HControl.msg
   RControl.msg
+  MControl.msg
+  TargetInfo.msg
+  FrontCamDistance.msg
+  BottomCamDistance.msg
 )
 
 ## Generate services in the 'srv' folder

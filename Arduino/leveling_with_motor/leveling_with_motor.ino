@@ -3,6 +3,9 @@
 #include <std_msgs/Float32.h>
 #include <auv_cal_state_la_2017/HControl.h>
 #include <auv_cal_state_la_2017/RControl.h>
+#include <auv_cal_state_la_2017/MControl.h>
+#include <auv_cal_state_la_2017/FrontCamDistance.h>
+#include <auv_cal_state_la_2017/BottomCamDistance.h>
 #include <Servo.h>
 #include <Wire.h>
 #include <SPI.h>
@@ -62,33 +65,62 @@ float temperature;
 float dutyCycl_orient;
 float assignedYaw;
 
-
 //Initialize ROS node
 const float rotationUpperBound = 166.2;
 const float rotationLowerBound = -193.8;
-float bottomDepth = 12;
+const float bottomDepth = 12;
+int mControlDirection;
+float mControlPower;
+float mControlDistance;
+float frontCamForwardDistance;
+float frontCamHorizontalDistance;
+float frontCamVerticalDistance;
+float bottomCamForwardDistance;
+float bottomCamHorizontalDistance;
+float bottomCamVerticalDistance;
+float centerTimer;
 bool isGoingUp;
 bool isGoingDown;
 bool isTurningRight;
 bool isTurningLeft;
 bool keepTurningRight;
 bool keepTurningLeft;
+bool mControlMode1;
+bool mControlMode2;
+bool mControlMode3;
+bool mControlMode4;
+bool keepMovingForward;
+bool keepMovingRight;
+bool keepMovingBackward;
+bool keepMovingLeft;
+
+//Testing-----------------------
+float positionX = 0;
+float positionY = 0;
 
 ros::NodeHandle nh;
 std_msgs::Float32 currentDepth;
 std_msgs::Float32 currentRotation;
 auv_cal_state_la_2017::HControl hControlStatus;
 auv_cal_state_la_2017::RControl rControlStatus;
+auv_cal_state_la_2017::MControl mControlStatus;
 
 ros::Publisher hControlPublisher("height_control_status", &hControlStatus);     //int: state, float: depth
 ros::Publisher rControlPublisher("rotation_control_status", &rControlStatus);   //int: state, float: rotation
+ros::Publisher mControlPublisher("movement_control_status", &mControlStatus);   //int: state, int: direction, float: distance
 ros::Publisher currentDepthPublisher("current_depth", &currentDepth);           //float: depth
 ros::Publisher currentRotationPublisher("current_rotation", &currentRotation);  //float: rotation
 
 void hControlCallback(const auv_cal_state_la_2017::HControl& hControl);
 void rControlCallback(const auv_cal_state_la_2017::RControl& rControl);
+void mControlCallback(const auv_cal_state_la_2017::MControl& mControl);
+void frontCamDistanceCallback(const auv_cal_state_la_2017::FrontCamDistance& frontCamDistance);  
+void bottomCamDistanceCallback(const auv_cal_state_la_2017::BottomCamDistance& bottomCamDistance);
 ros::Subscriber<auv_cal_state_la_2017::HControl> hControlSubscriber("height_control", &hControlCallback);   //int: state, float: depth
 ros::Subscriber<auv_cal_state_la_2017::RControl> rControlSubscriber("rotation_control", &rControlCallback); //int: state, float: rotation
+ros::Subscriber<auv_cal_state_la_2017::MControl> mControlSubscriber("movement_control", &mControlCallback);
+ros::Subscriber<auv_cal_state_la_2017::FrontCamDistance> frontCamDistanceSubscriber("front_cam_distance", &frontCamDistanceCallback);
+ros::Subscriber<auv_cal_state_la_2017::BottomCamDistance> bottomCamDistanceSubscriber("bottom_cam_distance", &bottomCamDistanceCallback);
 
 void setup() {
   
@@ -132,16 +164,36 @@ void setup() {
   Serial.begin(38400);
 
   //Initialize ROS variable
+  mControlDirection = 0;
+  mControlPower = 0;
+  mControlDistance = 0;
+  frontCamForwardDistance = 0;
+  frontCamHorizontalDistance = 0;
+  frontCamVerticalDistance = 0;
+  bottomCamForwardDistance = 0;
+  bottomCamHorizontalDistance = 0;
+  bottomCamVerticalDistance = 0;
+  centerTimer = 0;
   isGoingUp = false;
   isGoingDown = false;
   isTurningRight = false;
   isTurningLeft = false;
   keepTurningRight = false;
   keepTurningLeft = false;
+  mControlMode1 = false;
+  mControlMode2 = false;
+  mControlMode3 = false;
+  mControlMode4 = false;
+  keepMovingForward = false;
+  keepMovingRight = false;
+  keepMovingBackward = false;
+  keepMovingLeft = false;
   
   //Testing------------------
   feetDepth_read = 0;
   yaw = 0;
+  positionX = 0;
+  positionY = 0;
   
   assignedDepth = feetDepth_read;
   currentDepth.data = feetDepth_read;
@@ -153,12 +205,24 @@ void setup() {
   hControlStatus.depth = 0;
   rControlStatus.state = 1;
   rControlStatus.rotation = 0;
+
+  // MControl
+  // state => 0: off, 1: on with power, 2: on with distance, 3: centered with front cam, 4: centered with bottom cam
+  // direction => 0: none, 1: forward, 2: right, 3: backward, 4: left
+  // power => 0: none, x: x power add to the motors
+  // distance => 0: none, x: x units away from the object
+  mControlStatus.state = 0;
+  mControlStatus.mDirection = 0;
+  mControlStatus.power = 0;
+  mControlStatus.distance = 0;
   
   nh.initNode();
   nh.subscribe(hControlSubscriber);
   nh.subscribe(rControlSubscriber);
+  nh.subscribe(mControlSubscriber);
   nh.advertise(hControlPublisher);
   nh.advertise(rControlPublisher);
+  nh.advertise(mControlPublisher);
   nh.advertise(currentDepthPublisher);
   nh.advertise(currentRotationPublisher);
 
@@ -168,7 +232,7 @@ void setup() {
   sensor.setFluidDensity(997); // kg/m^3 (997 freshwater, 1029 for seawater)
   
   nh.loginfo("Data is ready.");
-  nh.loginfo("Sub is staying. Waiting to receive data from master...");
+  nh.loginfo("Sub is staying. Waiting to receive data from master...\n");
 
 }
 
@@ -227,6 +291,7 @@ void loop() {
   //Apply on Motors
   heightControl();
   rotationControl();
+  movementControl();
 
   //Update and publish current data to master
   currentDepth.data = feetDepth_read;
@@ -256,7 +321,7 @@ void hControlCallback(const auv_cal_state_la_2017::HControl& hControl) {
       isGoingDown = true;
       nh.loginfo("Going down...");
       nh.loginfo(depthChar);
-      nh.loginfo("ft...(-1 means infinite)");
+      nh.loginfo("ft...(-1 means infinite)\n");
       hControlStatus.state = 0;
       hControlStatus.depth = depth;
     }else
@@ -266,11 +331,11 @@ void hControlCallback(const auv_cal_state_la_2017::HControl& hControl) {
     if(isGoingUp || isGoingDown){
       isGoingUp = false;
       isGoingDown = false;
-      nh.loginfo("Height control is now cancelled");
+      nh.loginfo("Height control is now cancelled\n");
     }
     assignedDepth = feetDepth_read;
     hControlStatus.state = 1;
-    hControlStatus.depth = depth;
+    hControlStatus.depth = 0;
   }
   else if(hControl.state == 2){
     if(!isGoingUp && !isGoingDown){
@@ -281,7 +346,7 @@ void hControlCallback(const auv_cal_state_la_2017::HControl& hControl) {
       isGoingUp = true;
       nh.loginfo("Going up...");
       nh.loginfo(depthChar);
-      nh.loginfo("ft...(-1 means infinite)");
+      nh.loginfo("ft...(-1 means infinite)\n");
       hControlStatus.state = 2;
       hControlStatus.depth = depth;
     }else
@@ -291,35 +356,6 @@ void hControlCallback(const auv_cal_state_la_2017::HControl& hControl) {
   
 }
 
-
-/*if (left){
-  yaw_calc = yaw + des_degree; 
-
-  if (yaw_calc >= 166){                   //maximum degree reached is 166, this statement compinsates the conversion from negative to positive degree
-    yaw_calc1 = yaw_calc - 166;          //difference between the calculated value to the max value
-    new_location_yaw = yaw_calc1 - 193;
-  }
-  else{
-    new_location_yaw = yaw_calc;         //this value ranges between [-193,166] 
-  }      
-}
-
-else if (right){
-  yaw_calc = yaw - des_degree; 
-
-  if(yaw_calc < -193){                     //minimum degree reached is -193
-    yaw_calc1 = yaw_calc + 193;            //difference between the calculated value to the min value
-    new_location_yaw = 166.01 + yaw_calc1; //new location in positive coordinate system
-  }
-  else {
-    new_location_yaw = yaw_calc; //this value ranges between [-193,166] 
-  }
-  
-}
-
-else{
-  yaw_calc = yaw; 
-}*/
 
 void rControlCallback(const auv_cal_state_la_2017::RControl& rControl){
   
@@ -332,15 +368,15 @@ void rControlCallback(const auv_cal_state_la_2017::RControl& rControl){
       if(rotation == -1) 
         keepTurningLeft = true;
       else{     
-        if (yaw + rotation >= 166) 
-          assignedYaw = yaw + rotation - 359;
+        if (yaw + rotation >= rotationUpperBound) 
+          assignedYaw = yaw + rotation - 360;
         else 
           assignedYaw = yaw + rotation;        
       }
       isTurningLeft = true;
       nh.loginfo("Turning left...");
       nh.loginfo(rotationChar);
-      nh.loginfo("degree...(-1 means infinite)");
+      nh.loginfo("degree...(-1 means infinite)\n");
       rControlStatus.state = 0;
       rControlStatus.rotation = rotation;
     }else 
@@ -352,19 +388,19 @@ void rControlCallback(const auv_cal_state_la_2017::RControl& rControl){
       isTurningLeft = false;
       keepTurningRight = false;
       keepTurningLeft = false;
-      nh.loginfo("Rotation control is now cancelled");
+      nh.loginfo("Rotation control is now cancelled\n");
     }
     assignedYaw = yaw;    
     rControlStatus.state = 1;
-    rControlStatus.rotation = rotation;
+    rControlStatus.rotation = 0;
   }
   else if(rControl.state == 2){
     if(!isTurningRight && !isTurningLeft){
       if(rotation == -1) 
         keepTurningRight = true;
       else{
-        if (yaw - rotation < -193) 
-          assignedYaw = yaw - rotation + 359;
+        if (yaw - rotation < rotationLowerBound) 
+          assignedYaw = yaw - rotation + 360;
         else 
           assignedYaw = yaw - rotation;        
       } 
@@ -378,6 +414,137 @@ void rControlCallback(const auv_cal_state_la_2017::RControl& rControl){
       nh.loginfo("Sub is still rotating.Command abort.");
   }
   rControlPublisher.publish(&rControlStatus);
+  
+}
+
+// MControl
+// state => 0: off, 1: on with power, 2: on with distance, 3: centered with front cam, 4: centered with bottom cam
+// direction => 0: none, 1: forward, 2: right, 3: backward, 4: left
+// power => 0: none, x: x power add to the motors
+// distance => 0: none, x: x units away from the object
+void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
+
+  String directionStr;
+  char powerChar[6];
+  char distanceChar[6];
+  float power = mControl.power;
+  float distance = mControl.distance;
+  dtostrf(power, 4, 2, powerChar);
+  dtostrf(distance, 4, 2, distanceChar);
+  
+
+  if(mControl.state == 0){
+    if(mControlMode1 || mControlMode2|| mControlMode3 || mControlMode4){
+      mControlMode1 = false;
+      mControlMode2 = false;
+      mControlMode3 = false;
+      mControlMode4 = false;
+      keepMovingForward = false;
+      keepMovingRight = false;
+      keepMovingBackward = false;
+      keepMovingLeft = false;
+      nh.loginfo("Movement control is now cancelled\n");
+    }
+    mControlDirection = 0;
+    mControlPower = 0;
+    mControlDistance = 0;
+    mControlStatus.state = 0;
+    mControlStatus.mDirection = 0;
+    mControlStatus.power = 0;
+    mControlStatus.distance = 0;
+  }
+  else if(mControl.state == 1){
+    if(mControlMode1 || mControlMode2|| mControlMode3 || mControlMode4)
+      nh.loginfo("Sub is still moving. Command abort.");
+    else if(mControl.mDirection != 1 && mControl.mDirection != 2 && mControl.mDirection != 3 && mControl.mDirection != 4)
+      nh.loginfo("Invalid direction with state 1. Please check the program and try again.\n");
+    else if(mControl.power == 0)
+      nh.loginfo("Invalid power with state 1. Please check the program and try again.");
+    else{
+      if(mControl.mDirection == 1){
+        keepMovingForward = true;
+        mControlDirection = 1;
+        directionStr = "forward";
+      }
+      else if(mControl.mDirection == 2){
+        keepMovingRight = true;
+        mControlDirection = 2;
+        directionStr = "right";
+      }
+      else if(mControl.mDirection == 3){
+        keepMovingBackward = true;
+        mControlDirection = 3;
+        directionStr = "backward";
+      }
+      else if(mControl.mDirection == 4){
+        keepMovingLeft = true;
+        mControlDirection = 4;
+        directionStr = "left";
+      }
+      directionStr = "Moving " + directionStr + " with power..."; 
+      nh.loginfo(directionStr.c_str());
+      nh.loginfo(powerChar);
+      nh.loginfo("...\n");
+      
+      mControlMode1 = true;
+      mControlPower = mControl.power;
+      mControlDistance = 0;
+      mControlStatus.state = 1;
+      mControlStatus.mDirection = mControl.mDirection;
+      mControlStatus.power = mControlPower;
+      mControlStatus.distance = 0;
+    }   
+  }
+  else if(mControl.state == 2){
+    if(mControlMode1 || mControlMode2|| mControlMode3 || mControlMode4)
+      nh.loginfo("Sub is still moving. Command abort.");
+    else if(mControl.mDirection != 1)
+      nh.loginfo("Invalid direction with state 2. Please check the program and try again.\n");
+    else{
+      nh.loginfo("Adjusting distance to...");
+      nh.loginfo(distanceChar);
+      nh.loginfo("away from the target.../n");
+      
+      mControlMode2 = true;
+      mControlPower = 0;
+      mControlDistance = mControl.distance;
+      mControlStatus.state = 2;
+      mControlStatus.mDirection = 1;
+      mControlStatus.power = 0;
+      mControlStatus.distance = mControlDistance;
+    }
+  }
+  else if(mControl.state == 3){
+    if(mControlMode1 || mControlMode2|| mControlMode3 || mControlMode4)
+      nh.loginfo("Sub is still moving. Command abort.");
+    else{
+      nh.loginfo("Centering the sub with target from the front camera...\n");
+
+      mControlMode3 = true;
+      mControlPower = 0;
+      mControlDistance = 0;
+      mControlStatus.state = 3;
+      mControlStatus.mDirection = 0;
+      mControlStatus.power = 0;
+      mControlStatus.distance = 0;
+    }
+  }
+  else if(mControl.state == 4){
+    if(mControlMode1 || mControlMode2 || mControlMode3 || mControlMode4)
+      nh.loginfo("Sub is still moving. Command abort.");
+    else{
+      nh.loginfo("Centering the sub with target from the bottom camera...\n");
+
+      mControlMode4 = true;
+      mControlPower = 0;
+      mControlDistance = 0;
+      mControlStatus.state = 4;
+      mControlStatus.mDirection = 0;
+      mControlStatus.power = 0;
+      mControlStatus.distance = 0;
+    }
+  }
+  mControlPublisher.publish(&mControlStatus);
   
 }
 
@@ -545,7 +712,7 @@ void heightControl(){
     if(isGoingUp || isGoingDown){
       isGoingUp = false;
       isGoingDown = false;
-      nh.loginfo("Assigned depth reached.");
+      nh.loginfo("Assigned depth reached.\n");
     }
     hControlStatus.state = 1;
     hControlStatus.depth = 0;
@@ -602,13 +769,169 @@ void rotationControl(){
       isTurningLeft = false;
       keepTurningRight = false;
       keepTurningLeft = false;
-      nh.loginfo("Assigned rotation reached.");
+      nh.loginfo("Assigned rotation reached.\n");
     }
     rControlStatus.state = 1;
     rControlStatus.rotation = 0;     
     rControlPublisher.publish(&rControlStatus);
   }
   
+}
+
+
+void movementControl(){
+
+  if(mControlMode1){
+    if(keepMovingForward){
+      //Turn on forward motors with specific power => stored in variable mControlPower
+      //Testing-------------------
+      positionY += 0.5;
+    }
+    else if(keepMovingRight){
+      //Turn on right motors with specific power => stored in variable mControlPower
+      //Testing-------------------
+      positionX += 0.5;
+    }
+    else if(keepMovingBackward){
+      //Turn on back motors with specific power => stored in variable mControlPower
+      //Testing-------------------
+      positionY -= 0.5;
+    }
+    else if(keepMovingLeft){
+      //Turn on left motors with specific power => stored in variable mControlPower
+      //Testing-------------------
+      positionX -= 0.5;
+    }
+  }
+  else if(mControlMode2){
+    float error = 0.5;
+    float distanceToReach = frontCamForwardDistance - mControlDistance;
+    if(distanceToReach > 0.5){
+      //Turn on the front motors with a proportional speed to the distanceToReach
+      //Greater the distanceToReach, greater the power
+
+      //Testing-----------------------------
+      //positionY += 0.1;
+      centerTimer = 0;
+    }
+    else if(distanceToReach < -0.5){
+      //Turn on the back motors with a proportional speed to the distanceToReach
+      //Smaller the distanceToReach, greater the power
+
+      //Testing-----------------------------
+      //positionY -= 0.1;
+      centerTimer = 0;
+    }
+    else{
+      centerTimer += 0.1;
+      if(centerTimer > 5){
+        mControlMode2 = false;
+        nh.loginfo("Target distance reached.\n");
+      }
+    }
+    
+  }
+  else if(mControlMode3){
+    float error = 0.5;
+    if(frontCamHorizontalDistance > error){
+      //Turn on the right motors with a proportional speed to the frontCamHorizontalDistance
+      //Greater the frontCamHorizontalDistance, greater the power
+
+      //Testing-----------------------------
+      //positionX += 0.1;
+      centerTimer = 0;
+    }
+    else if(frontCamHorizontalDistance < -error){
+      //Turn on the left motors with a proportional speed to the frontCamHorizontalDistance
+      //Smaller the frontCamHorizontalDistance, greater the power
+
+      //Testing-----------------------------
+      //positionX -= 0.1;
+      centerTimer = 0;
+    }
+    else{
+      centerTimer += 0.1;
+      if(centerTimer > 5){
+        mControlMode3 = false;
+        nh.loginfo("Target center reached.\n");
+      }
+    }
+  }
+  else if(mControlMode4){
+    float error = 0.5;
+    if(bottomCamHorizontalDistance > error){
+      //Turn on the right motors with a proportional speed to the bottomCamHorizontalDistance
+      //Greater the bottomCamHorizontalDistance, greater the power
+
+      //Testing-----------------------------
+      //positionX += 0.1;
+      centerTimer = 0;
+    }
+    else if(bottomCamHorizontalDistance < -error){
+      //Turn on the left motors with a proportional speed to the bottomCamHorizontalDistance
+      //Smaller the bottomCamHorizontalDistance, greater the power
+
+      //Testing-----------------------------
+      //positionX -= 0.1;
+      centerTimer = 0;
+    }
+    else{
+      centerTimer += 0.1;
+      if(centerTimer > 5){
+        mControlMode4 = false;
+        nh.loginfo("Target center reached.\n");
+      }
+    }
+    if(bottomCamVerticalDistance > error){
+      //Turn on the front motors with a proportional speed to the bottomCamVerticalDistance
+      //Greater the bottomCamVerticalDistance, greater the power
+
+      //Testing-----------------------------
+      //positionY += 0.1;
+      centerTimer = 0;
+    }
+    else if(bottomCamVerticalDistance < -error){
+      //Turn on the back motors with a proportional speed to the bottomCamVerticalDistance
+      //Smaller the bottomCamVerticalDistance, greater the power
+
+      //Testing-----------------------------
+      //positionT -= 0.1;
+      centerTimer = 0;
+    }
+    else{
+      centerTimer += 0.1;
+      if(centerTimer > 5){
+        mControlMode4 = false;
+        nh.loginfo("Target center reached.\n");
+      }
+    }
+  }
+  else{
+    centerTimer = 0;
+    mControlDirection = 0;
+    mControlPower = 0;
+    mControlDistance = 0;
+    mControlStatus.state = 0;
+    mControlStatus.mDirection = 0;
+    mControlStatus.power = 0;
+    mControlStatus.distance = 0;
+    mControlPublisher.publish(&mControlStatus);
+  }
+  
+}
+
+
+void frontCamDistanceCallback(const auv_cal_state_la_2017::FrontCamDistance& frontCamDistance){
+  frontCamForwardDistance = frontCamDistance.frontCamForwardDistance;
+  frontCamHorizontalDistance = frontCamDistance.frontCamHorizontalDistance;
+  frontCamVerticalDistance = frontCamDistance.frontCamVerticalDistance;
+}
+
+
+void bottomCamDistanceCallback(const auv_cal_state_la_2017::BottomCamDistance& bottomCamDistance){
+  bottomCamForwardDistance = bottomCamDistance.bottomCamForwardDistance;
+  bottomCamHorizontalDistance = bottomCamDistance.bottomCamHorizontalDistance;
+  bottomCamVerticalDistance = bottomCamDistance.bottomCamVerticalDistance;
 }
 
 
