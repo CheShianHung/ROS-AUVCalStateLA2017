@@ -593,7 +593,7 @@ void stayLeveling(){
   
 }
 
-
+/de
 //Going upward
 void goingUpward(){
   
@@ -729,7 +729,8 @@ void rotationControl(){
   
   if(keepTurningLeft){
     //Turn on left rotation motor with fixed power
-
+    T5.writeMicroseconds(1500 + 150);
+    T7.writeMicroseconds(1500 - 150);
     //Testing----------------------------
     yaw += 0.5;
     if(yaw > rotationUpperBound) 
@@ -737,7 +738,8 @@ void rotationControl(){
   }
   else if(keepTurningRight){
     //Turn on right rotation motor with fixed power
-
+    T5.writeMicroseconds(1500 - 150);
+    T7.writeMicroseconds(1500 + 150);
     //Testing----------------------------
     yaw -= 0.5;
     if(yaw < rotationLowerBound) 
@@ -806,20 +808,24 @@ void movementControl(){
   else if(mControlMode2){
     float error = 0.5;
     float distanceToReach = frontCamForwardDistance - mControlDistance;
-    if(distanceToReach > 0.5){
+    if(distanceToReach > 0){
       //Turn on the front motors with a proportional speed to the distanceToReach
       //Greater the distanceToReach, greater the power
 
       //Testing-----------------------------
       //positionY += 0.1;
-      centerTimer = 0;
-    }
-    else if(distanceToReach < -0.5){
+    }else if(distanceToReach < 0){
       //Turn on the back motors with a proportional speed to the distanceToReach
       //Smaller the distanceToReach, greater the power
 
       //Testing-----------------------------
       //positionY -= 0.1;
+    }
+    //Timer
+    if(distanceToReach > error){
+      centerTimer = 0;
+    }
+    else if(distanceToReach < error){     
       centerTimer = 0;
     }
     else{
@@ -833,20 +839,25 @@ void movementControl(){
   }
   else if(mControlMode3){
     float error = 0.5;
-    if(frontCamHorizontalDistance > error){
+    if(frontCamHorizontalDistance > 0){
       //Turn on the right motors with a proportional speed to the frontCamHorizontalDistance
       //Greater the frontCamHorizontalDistance, greater the power
 
       //Testing-----------------------------
       //positionX += 0.1;
-      centerTimer = 0;
     }
-    else if(frontCamHorizontalDistance < -error){
+    else if(frontCamHorizontalDistance < 0){
       //Turn on the left motors with a proportional speed to the frontCamHorizontalDistance
       //Smaller the frontCamHorizontalDistance, greater the power
 
       //Testing-----------------------------
       //positionX -= 0.1;
+    }
+    //Timer
+    if(frontCamHorizontalDistance > error){ 
+      centerTimer = 0;
+    }
+    else if(frontCamHorizontalDistance < -error){     
       centerTimer = 0;
     }
     else{
@@ -859,47 +870,55 @@ void movementControl(){
   }
   else if(mControlMode4){
     float error = 0.5;
-    if(bottomCamHorizontalDistance > error){
+    if(bottomCamHorizontalDistance > 0){
       //Turn on the right motors with a proportional speed to the bottomCamHorizontalDistance
       //Greater the bottomCamHorizontalDistance, greater the power
 
       //Testing-----------------------------
       //positionX += 0.1;
-      centerTimer = 0;
     }
-    else if(bottomCamHorizontalDistance < -error){
+    else if(bottomCamHorizontalDistance < 0){
       //Turn on the left motors with a proportional speed to the bottomCamHorizontalDistance
       //Smaller the bottomCamHorizontalDistance, greater the power
 
       //Testing-----------------------------
       //positionX -= 0.1;
+    }
+    if(bottomCamHorizontalDistance > error){    
+      centerTimer = 0;
+    }
+    else if(bottomCamHorizontalDistance < -error){     
       centerTimer = 0;
     }
     else{
-      centerTimer += 0.1;
+      centerTimer += 0.05;
       if(centerTimer > 5){
         mControlMode4 = false;
         nh.loginfo("Target center reached.\n");
       }
     }
-    if(bottomCamVerticalDistance > error){
+    if(bottomCamVerticalDistance > 0){
       //Turn on the front motors with a proportional speed to the bottomCamVerticalDistance
       //Greater the bottomCamVerticalDistance, greater the power
 
       //Testing-----------------------------
       //positionY += 0.1;
-      centerTimer = 0;
     }
-    else if(bottomCamVerticalDistance < -error){
+    else if(bottomCamVerticalDistance < 0){
       //Turn on the back motors with a proportional speed to the bottomCamVerticalDistance
       //Smaller the bottomCamVerticalDistance, greater the power
 
       //Testing-----------------------------
       //positionT -= 0.1;
+    }
+    if(bottomCamVerticalDistance > error){
+      centerTimer = 0;
+    }
+    else if(bottomCamVerticalDistance < -error){   
       centerTimer = 0;
     }
     else{
-      centerTimer += 0.1;
+      centerTimer += 0.05;
       if(centerTimer > 5){
         mControlMode4 = false;
         nh.loginfo("Target center reached.\n");
@@ -950,7 +969,8 @@ void bottomCamDistanceCallback(const auv_cal_state_la_2017::BottomCamDistance& b
 //  } 
 void rotateLeftDynamically(){
   //Rotate left with PWM_Motors_orient
-  
+  T5.writeMicroseconds(1500 + PWM_Motors_orient);
+  T7.writeMicroseconds(1500 - PWM_Motors_orient);
   //Testing----------------------------
   yaw += 0.5;
   if(yaw > rotationUpperBound) yaw -= 360;
@@ -959,7 +979,8 @@ void rotateLeftDynamically(){
 
 void rotateRightDynamically(){
   //Rotate right with PWM_Motors_orient
-  
+  T5.writeMicroseconds(1500 - PWM_Motors_orient);
+  T7.writeMicroseconds(1500 + PWM_Motors_orient);
   //Testing----------------------------
   yaw -= 0.5;
   if(yaw < rotationLowerBound) yaw +=360;
