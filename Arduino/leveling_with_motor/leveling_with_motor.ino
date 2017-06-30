@@ -279,14 +279,14 @@ void loop() {
   //Testing----------------------
   //feetDepth_read =  sensor.depth() * 3.28;                                   //1 meter = 3.28 feet  
   dutyCycl_depth = (abs(assignedDepth - feetDepth_read)/ 12.0);              //function to get a percentage of assigned height to the feet read
-  PWM_Motors_Depth = dutyCycl_depth * 350;                                   //PWM for motors are between 1500 - 1900; difference is 400 
+  PWM_Motors_Depth = dutyCycl_depth * 200;                                   //PWM for motors are between 1500 - 1900; difference is 400 
 
   //Rotation
   //duty cycle and PWM calculation for orientation
   dutyCycl_orient = degreeToTurn() / 360.0; //Warning: the return value from degreeToTurn is from 0 to 180
   //  PWM_Motors_orient = dutyCycl * 400;
   //****************************NEED TO CHECK WITH ERICK!!
-  PWM_Motors_orient = dutyCycl_orient * 400;
+  PWM_Motors_orient = dutyCycl_orient * 400 / 2; //Maximum is 200
 
   //Apply on Motors
   heightControl();
@@ -551,53 +551,53 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
 
 //Leveling while staying
 void stayLeveling(){
-  
+  float high = 4;
+  float low = 2;
   for (i = 0; (2 * i) < 90; i++){ //loop will start from 0 degrees -> 90 degrees 
     //right
     if((roll > 2*i) && (roll < (2*i + 2))){
       //Boost the right motors
-      T2.writeMicroseconds(1500 + i*8);
-      T3.writeMicroseconds(1500 - i*8);
+      T2.writeMicroseconds(1500 + i*high);
+      T3.writeMicroseconds(1500 - i*high);
       //Downgrade the left motors
-      T1.writeMicroseconds(1500 + i*4);
-      T4.writeMicroseconds(1500 - i*4);
+      T1.writeMicroseconds(1500 + i*low);
+      T4.writeMicroseconds(1500 - i*low);
     }
     //left
     if((roll < -1 *(2*i)) && (roll > -1 *(2*i + 2))){
       //Boost the left motors
-      T1.writeMicroseconds(1500 - i*8);
-      T4.writeMicroseconds(1500 + i*8);
+      T1.writeMicroseconds(1500 - i*high);
+      T4.writeMicroseconds(1500 + i*high);
       //Downgrade the right motors
-      T2.writeMicroseconds(1500 - i*4);
-      T3.writeMicroseconds(1500 + i*4);
+      T2.writeMicroseconds(1500 - i*low);
+      T3.writeMicroseconds(1500 + i*low);
     }
     //backward
     if((pitch > 2*i) && (pitch < (2*i + 2))){
       //Boost the back motors
-      T3.writeMicroseconds(1500 - i*8);
-      T4.writeMicroseconds(1500 + i*8);
+      T3.writeMicroseconds(1500 - i*high);
+      T4.writeMicroseconds(1500 + i*high);
       //Downgrade the front motors
-      T1.writeMicroseconds(1500 + i*4);
-      T2.writeMicroseconds(1500 - i*4);  
+      T1.writeMicroseconds(1500 + i*low);
+      T2.writeMicroseconds(1500 - i*low);  
     }
     //forward
     if((pitch < -1*( 2*i)) && (pitch > -1 *(2*i + 2))){
       //Boost the front motors
-      T1.writeMicroseconds(1500 - i*8);
-      T2.writeMicroseconds(1500 + i*8);
+      T1.writeMicroseconds(1500 - i*high);
+      T2.writeMicroseconds(1500 + i*high);
       //Downgrade the back motors
-      T3.writeMicroseconds(1500 + i*4);
-      T4.writeMicroseconds(1500 - i*4);
+      T3.writeMicroseconds(1500 + i*low);
+      T4.writeMicroseconds(1500 - i*low);
     }
   }
   
 }
 
-/de
 //Going upward
 void goingUpward(){
   
-  int levelPower = (400 - PWM_Motors_Depth) / 45;
+  int levelPower = (200 - PWM_Motors_Depth) / 45;
   int reversedLevelPower = (PWM_Motors_Depth / 45) * (-1);
 
   for(i = 0; (2 * i) < 90; i++){
@@ -645,7 +645,7 @@ void goingUpward(){
 void goingDownward(){
   
   PWM_Motors_Depth = -PWM_Motors_Depth;
-  int levelPower = ((400 + PWM_Motors_Depth) / 45) * (-1);
+  int levelPower = ((200 + PWM_Motors_Depth) / 45) * (-1);
   int reversedLevelPower = ((-1) * PWM_Motors_Depth) / 45;
 
   for (i = 0; (2 * i) < 90; i++){ //loop will start from 0 degrees -> 90 degrees 
