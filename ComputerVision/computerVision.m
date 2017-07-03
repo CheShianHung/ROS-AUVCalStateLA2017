@@ -20,9 +20,10 @@ tiMsg = rosmessage('auv_cal_state_la_2017/TargetInfo');
 
 cviSub = rossubscriber('/cv_info');
 
-%% Initializa boolean variables
+%% Initializa variables
 frontCam = false;
 bottomCam = false;
+testTimer = 0;
 
 %% Rate of loop (10Hz)
 rate = rosrate(10);
@@ -47,18 +48,21 @@ while 1
     if cviMsg.CameraNumber == 1 && ~frontCam
         %camera = cv.VideoCapture();
         frontCam = true; 
+        bottomCam = false;
     elseif cviMsg.CameraNumber == 2 && ~bottomCam
         %camera = cv.VideoCapture();
+        frontCam = false;
         bottomCam = true;
-    elseif ~cviMsg.CameraNumber == 1 && ~cviMsg.CameraNumber == 2 && (frontCam || bottomCam)
+    elseif cviMsg.CameraNumber == 0 && (frontCam || bottomCam)
         frontCam = false;
         bottomCam = false;
+        testTimer = 0;
     end
             
     
     %% Run camera
     if frontCam
-        FrontCamera(cviMsg.TaskNumber, cviMsg.GivenColor, cviMsg.GivenShape, cviMsg.GivenLength, cviMsg.GivenDistance);
+        testTimer = FrontCamera(testTimer, tiMsg, cviMsg.TaskNumber, cviMsg.GivenColor, cviMsg.GivenShape, cviMsg.GivenLength, cviMsg.GivenDistance);
     end
     
     if bottomCam
@@ -75,8 +79,26 @@ while 1
 end
 
 %% Front Camera
-function FrontCamera(taskNum, givenC, givenS, givenL, givenD)
-    fprintf('taskNum: %d ,givenC: %d ,givenS: %d ,givenL: %.2f ,givenD: %.2f', taskNum, givenC, givenS, givenL, givenD); 
+function timer = FrontCamera(testTimer, tiMsg, taskNum, givenC, givenS, givenL, givenD)
+    %fprintf('taskNum: %d ,givenC: %d ,givenS: %d ,givenL: %.2f ,givenD: %.2f', taskNum, givenC, givenS, givenL, givenD); 
+    timer = testTimer + 0.1;
+    if timer >= 10 
+        tiMsg.State = 1;
+        tiMsg.Angle = 90;
+        tiMsg.Height = -4;
+        tiMsg.Direction = 1; 
+        disp('Object found. Sending data to master...');
+    %elseif timer >= 20
+        %tiMsg.State = 1;
+        %tiMsg.Angle = 0;
+        %tiMsg.Height = 0;
+        %tiMsg.Direction = 0;
+    else
+        disp('Finding object...');
+        disp(timer);
+    end
+    
+    return
 end
 
 %% Bottom Camera
