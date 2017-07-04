@@ -194,7 +194,7 @@ void setup() {
   yaw = 0;
   positionX = 0;
   positionY = 0;
-  
+
   assignedDepth = feetDepth_read;
   currentDepth.data = feetDepth_read;
   
@@ -838,7 +838,7 @@ void movementControl(){
     
   }
   else if(mControlMode3){
-    float error = 0.5;
+    float error = 0.5;    
     if(frontCamHorizontalDistance > 0){
       //Turn on the right motors with a proportional speed to the frontCamHorizontalDistance
       //Greater the frontCamHorizontalDistance, greater the power

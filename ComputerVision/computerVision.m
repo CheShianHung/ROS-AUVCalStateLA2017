@@ -56,6 +56,7 @@ while 1
     elseif cviMsg.CameraNumber == 0 && (frontCam || bottomCam)
         frontCam = false;
         bottomCam = false;
+        disp("task done");
         testTimer = 0;
     end
             
@@ -82,17 +83,12 @@ end
 function timer = FrontCamera(testTimer, tiMsg, taskNum, givenC, givenS, givenL, givenD)
     %fprintf('taskNum: %d ,givenC: %d ,givenS: %d ,givenL: %.2f ,givenD: %.2f', taskNum, givenC, givenS, givenL, givenD); 
     timer = testTimer + 0.1;
-    if timer >= 10 
+    if timer >= 5 
         tiMsg.State = 1;
-        tiMsg.Angle = 90;
+        tiMsg.Angle = 45;
         tiMsg.Height = -4;
         tiMsg.Direction = 1; 
         disp('Object found. Sending data to master...');
-    %elseif timer >= 20
-        %tiMsg.State = 1;
-        %tiMsg.Angle = 0;
-        %tiMsg.Height = 0;
-        %tiMsg.Direction = 0;
     else
         disp('Finding object...');
         disp(timer);

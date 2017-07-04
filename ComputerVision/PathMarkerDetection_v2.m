@@ -4,7 +4,7 @@ clc;
 
 given_radius = 8*49/8;
 given_distance = 60;
-color_choice = 3;   % integer from 1-4; colors listed below
+color_choice = 5;   % integer from 1-4; colors listed below
 
 %% Colors
 
@@ -34,10 +34,11 @@ colorlab = single(colorlab);
 
 % colorthresh = [color-20,color+20];
 % colorthresh = colorthresh;
-colorthresh = [colorlab-20,colorlab+20];
+colorthresh = colorlab;
+colorthresh(:,:,1) = [colorlab(:,:,1) - 20, colorlab(:,:,1) + 20];
 colorthresh(:,:,1) = colorthresh(:,:,1).*(colorthresh(:,:,1) >= 0).*(colorthresh(:,:,1) <= 100) + (colorthresh(:,:,1) > 100)*100;
-colorthresh(:,:,2) = colorthresh(:,:,2).*(colorthresh(:,:,2) >= -128).*(colorthresh(:,:,2) <= 128) + (colorthresh(:,:,2) > 128)*128;
-colorthresh(:,:,3) = colorthresh(:,:,3).*(colorthresh(:,:,3) >= -128).*(colorthresh(:,:,1) <= 128) + (colorthresh(:,:,1) > 128)*128;
+%%%%%%colorthresh(:,:,2) = colorthresh(:,:,2).*(colorthresh(:,:,2) >= -128).*(colorthresh(:,:,2) <= 128) + (colorthresh(:,:,2) > 128)*128;
+%%%%%%colorthresh(:,:,3) = colorthresh(:,:,3).*(colorthresh(:,:,3) >= -128).*(colorthresh(:,:,1) <= 128) + (colorthresh(:,:,1) > 128)*128;
 
 
 %% Camera initialization
@@ -46,8 +47,8 @@ colorthresh(:,:,3) = colorthresh(:,:,3).*(colorthresh(:,:,3) >= -128).*(colorthr
 % pause(2);
 % img = single(camera.read());
 
-img = which('blue.jpg');
-img = single(cv.imread(img, 'Flags',1));
+%%%%%%img = which('cvTest.jpg');
+%%%%%%img = single(cv.imread(img, 'Flags',1));
 
 % camera = videoinput('tisimaq_r2013',1,'RGB24 (744x480)');
 % pause(2);
@@ -56,13 +57,13 @@ img = single(cv.imread(img, 'Flags',1));
 %
 % img = cv.resize(img,[300,350]);
 
-l = size(img,1);
-w = size(img,2);
+%%%%%%l = size(img,1);
+%%%%%%w = size(img,2);
 
 %%
 
-origin = [l/2,w/2];    % Sets the origin coordinates
-mask_template = single(zeros(length(img(:,1)),length(img(1,:,:)),3));    % initialize as an unsigned 8bit matrix
+%%%%%%origin = [l/2,w/2];    % Sets the origin coordinates
+%%%%%%mask_template = single(zeros(length(img(:,1)),length(img(1,:,:)),3));    % initialize as an unsigned 8bit matrix
 
 % while 1
 %% Processing
@@ -75,24 +76,24 @@ mask_template = single(zeros(length(img(:,1)),length(img(1,:,:)),3));    % initi
 %     gray = cv.cvtColor(img, 'RGB2GRAY');    % convert to grayscale
 %     gray = cv.medianBlur(gray, 'KSize',5);  % blur grayscaled image
 %     thresh = cv.threshold(gray, 60,'MaxValue',255,'Type','Binary');
-lab = cv.medianBlur(img,'KSize',5);    % blur color image
-lab2 = cv.cvtColor(lab./255, 'RGB2Lab');
+%%%%%%lab = cv.medianBlur(img,'KSize',5);    % blur color image
+%%%%%%lab2 = cv.cvtColor(lab./255, 'RGB2Lab');
 % convert color image to LAB colorspace
 
-lbc5 = repmat(colorthresh(1,1,:),l,w);
+%%%%%%lbc5 = repmat(colorthresh(1,1,:),l,w);
 
 
-mask = cv.inRange(lab2,colorthresh(1,1,:),colorthresh(1,2,:));
-output = cv.bitwise_and(lab2,lab2,'Mask',mask);
-output = cv.cvtColor(output,'Lab2RGB').*255;
-output = cv.cvtColor(output,'RGB2GRAY');
-thresh = cv.threshold(output,60,'MaxValue',255,'Type','Binary');
+%%%%%%mask = cv.inRange(lab2,colorthresh(1,1,:),colorthresh(1,2,:));
+%%%%%%output = cv.bitwise_and(lab2,lab2,'Mask',mask);
+%%%%%%output = cv.cvtColor(output,'Lab2RGB').*255;
+%%%%%%output = cv.cvtColor(output,'RGB2GRAY');
+%%%%%%thresh = cv.threshold(output,60,'MaxValue',255,'Type','Binary');
 
 
 
 %% Contour Detection
 
-cnts = cv.findContours(thresh,'Mode','External','Method','Simple');
+%%%%%%cnts = cv.findContours(thresh,'Mode','External','Method','Simple');
 
 %% Create an image mask to only analyze color within the rectangles
 
@@ -101,13 +102,13 @@ cnts = cv.findContours(thresh,'Mode','External','Method','Simple');
 %     detected_color = zeros(1,3);  % initialize the mean distance vector
 %     rectangles = 0;
 %     if numel(cnts) < 20
-for i=1:numel(cnts)
-    cnt = cnts(i);
-    M = cv.moments(cnt{1,1});
-    cX = int16(M.m10/M.m00);
-    cY = int16(M.m01/M.m00);
-    peri = cv.arcLength(cnt{1,1},'Closed',1);
-    approx = cv.approxPolyDP(cnt{1,1},'Epsilon',0.04*peri,'Closed',1);
+%%%%%%for i=1:numel(cnts)
+    %%%%%%cnt = cnts(i);
+    %%%%%%M = cv.moments(cnt{1,1});
+    %%%%%%cX = int16(M.m10/M.m00);
+    %%%%%%cY = int16(M.m01/M.m00);
+    %%%%%%peri = cv.arcLength(cnt{1,1},'Closed',1);
+    %%%%%%approx = cv.approxPolyDP(cnt{1,1},'Epsilon',0.04*peri,'Closed',1);
     
     %         if length(approx) == 4 && numel(cnt{1}) > 20
     %             rectangles = 1;
@@ -123,9 +124,9 @@ for i=1:numel(cnts)
     %             if d < minDist(1)
     %                 minDist = [d, i]; % detected object with the closest desired color
     %             end
-    img = cv.drawContours(img,cnt{1,1},'ContourIdx',-1,'Color',[0,255,0],'Thickness',2);
-    img = cv.circle(img,[cX,cY],7,'Color',[255,255,255],'Thickness',-1);
-end
+%%%%%%    img = cv.drawContours(img,cnt{1,1},'ContourIdx',-1,'Color',[0,255,0],'Thickness',2);
+%%%%%%    img = cv.circle(img,[cX,cY],7,'Color',[255,255,255],'Thickness',-1);
+%%%%%% end
 %     end
 %     end
 %     if rectangles
@@ -165,7 +166,9 @@ end
 %                 theta = atand(distance/delta_x);
 %         fprintf('Height:%3.2f   Angle:%2.1f Distance:%2.1f\n',delta_h,theta,distance); % print the calculated height and amount needed to turn
 %     else
-imshow(uint8(img));
+
+%%%%%% imshow(uint8(img));
+
 %     end
 %     toc;
 %     img = single(camera.read()); % initialize camera image for next loop

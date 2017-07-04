@@ -95,6 +95,7 @@ bool allNodesAreReady;
 //Communication variables
 bool receivedFromRControl;
 bool receivedFromHControl;
+bool receivedFromMControl;
 bool doneRotationControl;
 bool doneHeightControl;
 bool finishedRotationControl;
@@ -151,9 +152,9 @@ int main(int argc, char **argv){
   resetBoolVariables();
 
   task0_submergeToWater = true;     //Task 0 - make sure the sub is submerged
-  task_submerge8Ft = false;         //Task 1 - submerge 8 ft
-  task_rotateRight90D = false;      //Task 2 - rotate right 90 degrees
-  task_emerge5Ft = false;           //Task 3 - emerge 5 ft
+  task_submerge8Ft = true;         //Task 1 - submerge 8 ft
+  task_rotateRight90D = true;      //Task 2 - rotate right 90 degrees
+  task_emerge5Ft = true;           //Task 3 - emerge 5 ft
   task_cv_getTargetInfo_1 = false;  //Task 4 - cv test 1 (get target_info)
   task_cv_beforeCenter_1 = false;   //Task 5 - cv test 2 (find object before center)
   task_cv_centering_1 = false;      //Task 6 - cv test 3 (centering the sub)
@@ -258,7 +259,7 @@ int main(int argc, char **argv){
     receivedFromHControl = false;
     finishedRotationControl = false;
     finishedHeightControl = false;
-    ROS_INFO("Finding Object.");
+    ROS_INFO("Finding Object...");
     while(ros::ok() && !objectFound){
       settingCVInfo(1,1,2,3,4,5);
       cvInfoPublisher.publish(cvInfo);
@@ -266,6 +267,8 @@ int main(int argc, char **argv){
       loop_rate.sleep();
     }
     ROS_INFO("Object found.");
+    receivedFromRControl = false;
+    receivedFromHControl = false;
     while(ros::ok() && (!receivedFromRControl || !receivedFromHControl)){
       if(!receivedFromRControl && !doneRotationControl){
         if(angleToTurn > angleError){
@@ -325,9 +328,64 @@ int main(int argc, char **argv){
   resetBoolVariables();
 
   //Task =======================================================================
-  while(ros::ok() && task_cv_beforeCenter_1){
-
+  while(ros::ok() && !task_cv_beforeCenter_1){
+    ROS_INFO("Finding Object....");
+    while(ros::ok() && !objectFound && directionToMove != 0){
+      //Sending command to movement_control...
+      if(!receivedFromMControl){
+        ROS_INFO("sending to mControl");
+        mControl.state = 1;
+        if(directionToMove == 1)
+          mControl.mDirection = 2;
+        else if(directionToMove == -1)
+          mControl.mDirection = 4;
+        mControl.power = 50;
+        mControl.distance = 0;
+        mControlPublisher.publish(mControl);
+      }
+      settingCVInfo(1,1,2,3,4,5);
+      cvInfoPublisher.publish(cvInfo);
+      ros::spinOnce();
+      loop_rate.sleep();
+    }
+    receivedFromMControl = false;
+    ROS_INFO("Object found. Stopping the motor...");
+    while(ros::ok() && !receivedFromMControl){
+      //Sending command to movement_control...
+      mControl.state = 0;
+      mControl.mDirection = 0;
+      mControl.mDirection = 0;
+      mControl.power = 0;
+      mControl.distance = 0;
+      mControlPublisher.publish(mControl);
+      settingCVInfo(1,1,2,3,4,5);
+      cvInfoPublisher.publish(cvInfo);
+      ros::spinOnce();
+      loop_rate.sleep();
+    }
+    task_cv_beforeCenter_1 = true;
   }
+
+  resetBoolVariables();
+
+  //Task =======================================================================
+  ROS_INFO("Centering the sub with front camera...");
+  while(ros::ok() && !task_cv_centering_1){
+    if(!receivedFromMControl){
+      mControl.state = 3;
+      mControl.mDirection = 0;
+      mControl.mDirection = 0;
+      mControl.power = 0;
+      mControl.distance = 0;
+      mControlPublisher.publish(mControl);
+    }
+    settingCVInfo(1,1,2,3,4,5);
+    cvInfoPublisher.publish(cvInfo);
+    ros::spinOnce();
+    loop_rate.sleep();
+  }
+
+  resetBoolVariables();
 
   //Executing... ===============================================================
   while(ros::ok()){
@@ -351,6 +409,7 @@ void settingCVInfo(int cameraNum, int taskNum, int givenColor, int givenShape, f
 void resetBoolVariables(){
   receivedFromRControl = false;
   receivedFromHControl = false;
+  receivedFromMControl = false;
   doneRotationControl = false;
   doneHeightControl = false;
   finishedRotationControl = false;
@@ -359,10 +418,12 @@ void resetBoolVariables(){
 }
 
 void currentDepthCallback(const std_msgs::Float32& currentDepth){
-  if(!checkingCurrentDepth){
-    checkingCurrentDepth = true;
-    ROS_INFO("current_depth is ready.");
-    checkMotorNode();
+  if(!allNodesAreReady){
+    if(!checkingCurrentDepth){
+      checkingCurrentDepth = true;
+      ROS_INFO("current_depth is ready.");
+      checkMotorNode();
+    }
   }
   else if(!task0_submergeToWater){
     if(currentDepth.data > 0){
@@ -375,13 +436,16 @@ void currentDepthCallback(const std_msgs::Float32& currentDepth){
   else if(!task_emerge5Ft){}
   else if(!task_cv_getTargetInfo_1){}
   else if(!task_cv_beforeCenter_1){}
+  else if(!task_cv_centering_1){}
 }
 
 void currentRotationCallback(const std_msgs::Float32& currentRotation){
-  if(!checkingCurrentRotation){
-    checkingCurrentRotation = true;
-    ROS_INFO("current_rotation is ready.");
-    checkMotorNode();
+  if(!allNodesAreReady){
+    if(!checkingCurrentRotation){
+      checkingCurrentRotation = true;
+      ROS_INFO("current_rotation is ready.");
+      checkMotorNode();
+    }
   }
   else if(!task0_submergeToWater){}
   else if(!task_submerge8Ft){}
@@ -389,17 +453,20 @@ void currentRotationCallback(const std_msgs::Float32& currentRotation){
   else if(!task_emerge5Ft){}
   else if(!task_cv_getTargetInfo_1){}
   else if(!task_cv_beforeCenter_1){}
+  else if(!task_cv_centering_1){}
 }
 
 void frontCamDistanceCallback(const auv_cal_state_la_2017::FrontCamDistance fcd){
-  if(!checkingFrontCamDistance){
-    ROS_INFO("Checking front_cam_distance...");
-    if(fcd.frontCamForwardDistance == 0 &&
-       fcd.frontCamHorizontalDistance == 0 &&
-       fcd.frontCamVerticalDistance == 0){
-      checkingFrontCamDistance = true;
-      ROS_INFO("front_cam_distance is ready.");
-      checkCVNode();
+  if(!allNodesAreReady){
+    if(!checkingFrontCamDistance){
+      ROS_INFO("Checking front_cam_distance...");
+      if(fcd.frontCamForwardDistance == 0 &&
+         fcd.frontCamHorizontalDistance == 0 &&
+         fcd.frontCamVerticalDistance == 0){
+        checkingFrontCamDistance = true;
+        ROS_INFO("front_cam_distance is ready.");
+        checkCVNode();
+      }
     }
   }
   else if(!task0_submergeToWater){}
@@ -408,17 +475,20 @@ void frontCamDistanceCallback(const auv_cal_state_la_2017::FrontCamDistance fcd)
   else if(!task_emerge5Ft){}
   else if(!task_cv_getTargetInfo_1){}
   else if(!task_cv_beforeCenter_1){}
+  else if(!task_cv_centering_1){}
 }
 
 void bottomCamDistanceCallback(const auv_cal_state_la_2017::BottomCamDistance bcd){
-  if(!checkingBottomCamDistance){
-    ROS_INFO("Checking bottom_cam_distance...");
-    if(bcd.bottomCamForwardDistance == 0 &&
-       bcd.bottomCamHorizontalDistance == 0 &&
-       bcd.bottomCamVerticalDistance == 0){
-      checkingBottomCamDistance = true;
-      ROS_INFO("bottom_cam_distance is ready.");
-      checkCVNode();
+  if(!allNodesAreReady){
+    if(!checkingBottomCamDistance){
+      ROS_INFO("Checking bottom_cam_distance...");
+      if(bcd.bottomCamForwardDistance == 0 &&
+         bcd.bottomCamHorizontalDistance == 0 &&
+         bcd.bottomCamVerticalDistance == 0){
+        checkingBottomCamDistance = true;
+        ROS_INFO("bottom_cam_distance is ready.");
+        checkCVNode();
+      }
     }
   }
   else if(!task0_submergeToWater){}
@@ -427,19 +497,22 @@ void bottomCamDistanceCallback(const auv_cal_state_la_2017::BottomCamDistance bc
   else if(!task_emerge5Ft){}
   else if(!task_cv_getTargetInfo_1){}
   else if(!task_cv_beforeCenter_1){}
+  else if(!task_cv_centering_1){}
 }
 
 
 void hControlStatusCallback(const auv_cal_state_la_2017::HControl hc){
-  if(!checkingHeightControl){
-    ROS_INFO("Checking height_control...");
-    if(hc.state == 1 && hc.depth == 0){
-      checkingHeightControl = true;
-      ROS_INFO("height_control is ready.");
-      checkMotorNode();
-    }
-    else{
-      ROS_INFO("Cannot communicate with height_control...");
+  if(!allNodesAreReady){
+    if(!checkingHeightControl){
+      ROS_INFO("Checking height_control...");
+      if(hc.state == 1 && hc.depth == 0){
+        checkingHeightControl = true;
+        ROS_INFO("height_control is ready.");
+        checkMotorNode();
+      }
+      else{
+        ROS_INFO("Cannot communicate with height_control...");
+      }
     }
   }
   else if(!task0_submergeToWater){}
@@ -472,7 +545,7 @@ void hControlStatusCallback(const auv_cal_state_la_2017::HControl hc){
   }
   else if(!task_cv_getTargetInfo_1){
     if(!doneHeightControl){
-      if(!receivedFromHControl && hc.state == hControl.state && hc.depth == hControl.depth){
+      if(!receivedFromHControl && hc.state != 1 && hc.depth == hControl.depth){
         receivedFromHControl = true;
       }
       if(receivedFromHControl && !finishedHeightControl && hc.state == 1 && hc.depth == 0){
@@ -481,18 +554,21 @@ void hControlStatusCallback(const auv_cal_state_la_2017::HControl hc){
     }
   }
   else if(!task_cv_beforeCenter_1){}
+  else if(!task_cv_centering_1){}
 }
 
 void rControlStatusCallback(const auv_cal_state_la_2017::RControl rc){
-  if(!checkingRotationControl){
-    ROS_INFO("Checking rotation_control...");
-    if(rc.state == 1 && rc.rotation == 0){
-      checkingRotationControl = true;
-      ROS_INFO("rotation_control is ready.");
-      checkMotorNode();
-    }
-    else{
-      ROS_INFO("Cannot communicate with rotation_control...");
+  if(!allNodesAreReady){
+    if(!checkingRotationControl){
+      ROS_INFO("Checking rotation_control...");
+      if(rc.state == 1 && rc.rotation == 0){
+        checkingRotationControl = true;
+        ROS_INFO("rotation_control is ready.");
+        checkMotorNode();
+      }
+      else{
+        ROS_INFO("Cannot communicate with rotation_control...");
+      }
     }
   }
   else if(!task0_submergeToWater){}
@@ -513,7 +589,7 @@ void rControlStatusCallback(const auv_cal_state_la_2017::RControl rc){
   else if(!task_emerge5Ft){}
   else if(!task_cv_getTargetInfo_1){
     if(!doneRotationControl){
-      if(!receivedFromRControl && rc.state == rControl.state && rc.rotation == rControl.rotation){
+      if(!receivedFromRControl && rc.state != 1 && rc.rotation == rControl.rotation){
         receivedFromRControl = true;
       }
       if(receivedFromRControl && !finishedRotationControl && rc.state == 1 && rc.rotation == 0){
@@ -522,18 +598,21 @@ void rControlStatusCallback(const auv_cal_state_la_2017::RControl rc){
     }
   }
   else if(!task_cv_beforeCenter_1){}
+  else if(!task_cv_centering_1){}
 }
 
 void mControlStatusCallback(const auv_cal_state_la_2017::MControl mc){
-  if(!checkingMovementControl){
-    ROS_INFO("Checking rotation_control...");
-    if(mc.state == 0 && mc.mDirection == 0 && mc.power == 0 && mc.distance == 0){
-      checkingMovementControl = true;
-      ROS_INFO("movement_control is ready.");
-      checkMotorNode();
-    }
-    else{
-      ROS_INFO("Cannot communicate with movement_control...");
+  if(!allNodesAreReady){
+    if(!checkingMovementControl){
+      ROS_INFO("Checking movement_control...");
+      if(mc.state == 0 && mc.mDirection == 0 && mc.power == 0 && mc.distance == 0){
+        checkingMovementControl = true;
+        ROS_INFO("movement_control is ready.");
+        checkMotorNode();
+      }
+      else{
+        ROS_INFO("Cannot communicate with movement_control...");
+      }
     }
   }
   else if(!task0_submergeToWater){}
@@ -541,16 +620,43 @@ void mControlStatusCallback(const auv_cal_state_la_2017::MControl mc){
   else if(!task_rotateRight90D){}
   else if(!task_emerge5Ft){}
   else if(!task_cv_getTargetInfo_1){}
-  else if(!task_cv_beforeCenter_1){}
+  else if(!task_cv_beforeCenter_1){
+    if(!receivedFromMControl){
+      ROS_INFO("Sending command to movememt_control - move towards target");
+    }
+    if(!receivedFromMControl && mc.state == 1){
+      receivedFromMControl = true;
+      ROS_INFO("movement_control message received - moving...");
+    }
+    if(objectFound && !receivedFromMControl && mc.state == 0){
+      receivedFromMControl = true;
+      ROS_INFO("Sub is now stopped.");
+    }
+  }
+  else if(!task_cv_centering_1){
+    if(!receivedFromMControl){
+      ROS_INFO("Sending command to movement_control - centering with front camera");
+    }
+    if(!receivedFromMControl && mc.state == 3){
+      receivedFromMControl = true;
+      ROS_INFO("movement_control message received - centering");
+    }
+    if(receivedFromMControl && mc.state == 0){
+      task_cv_centering_1 = true;
+      ROS_INFO("Finished centering.");
+    }
+  }
 }
 
 void targetInfoCallback(const auv_cal_state_la_2017::TargetInfo ti){
-  if(!checkingTargetInfo){
-    ROS_INFO("Checking target_info...");
-    if(ti.state == 0 && ti.angle == 0 && ti.height == 0 && ti.direction == 0){
-      checkingTargetInfo = true;
-      ROS_INFO("target_info is ready.");
-      checkCVNode();
+  if(!allNodesAreReady){
+    if(!checkingTargetInfo){
+      ROS_INFO("Checking target_info...");
+      if(ti.state == 0 && ti.angle == 0 && ti.height == 0 && ti.direction == 0){
+        checkingTargetInfo = true;
+        ROS_INFO("target_info is ready.");
+        checkCVNode();
+      }
     }
   }
   else if(!task0_submergeToWater){}
@@ -566,7 +672,13 @@ void targetInfoCallback(const auv_cal_state_la_2017::TargetInfo ti){
       heightToMove = ti.height;
     }
   }
-  else if(!task_cv_beforeCenter_1){}
+  else if(!task_cv_beforeCenter_1){
+    //Object found
+    if(!objectFound && ti.state == 1){
+      objectFound = true;
+    }
+  }
+  else if(!task_cv_centering_1){}
 }
 
 void checkMotorNode(){
