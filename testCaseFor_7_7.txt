@@ -1,0 +1,80 @@
+//This file records all the test case on Friday 7/7/2017
+
+1. height_control
+
+  - checklist
+    = leveling at all time
+    = going down x ft
+    = going up x ft
+    = going all the way up to the surface
+
+  - variables to check:
+    = feetDepth_read
+    = PWM_Motors_Depth in loop()
+    = heightError in heightControl()
+    = levelPower & reversedLevelPower in goingUpward(), goingDownward()
+      *might need to take out revesedLevelPower
+
+  - test case:
+    1. going down x ft
+      = use a ruler to check if feetDepth_read is working correctly
+      = check if the leveling functions correctly during moving and after
+        reaching the assigned ft
+      = estimate the time and see if we need to increase the power (too slow)
+        or decrease the power (too fast)
+    2. going up x ft
+      = use a ruler to check if feetDepth_read is working correctly
+      = check if the leveling functions correctly during moving and after
+        reaching the assigned ft
+    3. going all the way up
+      = make the sub move from different depths and observe the difference
+    4. going down x ft and going up x ft
+      = estimate the time for the sub to move from a task to another task
+
+2. rotation_control
+
+  - checklist
+    = staying
+    = rotating right
+    = rotating left
+    = keep rotating right
+    = keep rotating left
+
+  - variables to check:
+    = yaw
+    = fixedPower
+    = PWM_Motors_orient in loop()
+    = rotationError in rotationControl()
+    = rotationUpperBound
+    = rotationLowerBound
+
+  - test case:
+    1. going down x ft
+      = manually rotate the sub and see if the sub can correct the rotation
+        by itself
+    2. rotate x degrees to the right, where x is less than 180
+      = make sure the sub rotate correctly
+      = check the height_control and leveling during rotating
+      = estimate the time and see if we need to increase the power (too slow)
+        or decrease the power (too fast)
+    3. rotate x degrees to the right, where x is greater than 180
+      = make sure the sub rotate correctly, the sub should rotate in opposite
+        direction and
+    4. rotate x degrees to the left, where x is less than 180
+      = make sure the sub rotate correctly
+    5. rotate x degrees to the left, where x is greater than 180
+      = make sure the sub rotate correctly, the sub should rotate in opposite
+      direction and
+    6. keep rotating right for x seconds, where x needs to be long enough for
+       the sub to at least finish one cycle
+      = make sure the sub rotate correctly
+    7. keep rotating left for x seconds, where x needs to be long enough for
+       the sub to at least finish one cycle
+      = make sure the sub rotate correctly
+    8. rotate right 180 degrees and then rotate right 180 degrees to finish
+       a cycle
+      = make sure the sub rotate correctly
+      = estimate the time for the sub to move from a task to another task
+    9. rotate left 180 degrees and then rotate left 180 degrees to finish a
+       cycle
+      = make sure the sub rotate correctly
