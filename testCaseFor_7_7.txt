@@ -10,6 +10,7 @@
 
   - variables to check:
     = feetDepth_read
+    = topDepth
     = PWM_Motors_Depth in loop()
     = heightError in heightControl()
     = levelPower & reversedLevelPower in goingUpward(), goingDownward()
@@ -17,19 +18,20 @@
 
   - test case:
     1. going down x ft
+      = test if the sub will turn on the motors and move to the initial depth
+        before submerging
       = use a ruler to check if feetDepth_read is working correctly
       = check if the leveling functions correctly during moving and after
         reaching the assigned ft
       = estimate the time and see if we need to increase the power (too slow)
         or decrease the power (too fast)
-    2. going up x ft
+    2. going down x ft and going up y ft
       = use a ruler to check if feetDepth_read is working correctly
       = check if the leveling functions correctly during moving and after
         reaching the assigned ft
-    3. going all the way up
-      = make the sub move from different depths and observe the difference
-    4. going down x ft and going up x ft
       = estimate the time for the sub to move from a task to another task
+    3. going down x ft and going all the way up
+      = make the sub move from different depths and observe the difference
 
 2. rotation_control
 
@@ -49,32 +51,74 @@
     = rotationLowerBound
 
   - test case:
-    1. going down x ft
+    1. going down x ft (happened before all test cases below)
       = manually rotate the sub and see if the sub can correct the rotation
         by itself
     2. rotate x degrees to the right, where x is less than 180
-      = make sure the sub rotate correctly
+      = make sure the sub rotates correctly
       = check the height_control and leveling during rotating
       = estimate the time and see if we need to increase the power (too slow)
         or decrease the power (too fast)
     3. rotate x degrees to the right, where x is greater than 180
-      = make sure the sub rotate correctly, the sub should rotate in opposite
+      = make sure the sub rotates correctly, the sub should rotate in opposite
         direction and
     4. rotate x degrees to the left, where x is less than 180
       = make sure the sub rotate correctly
     5. rotate x degrees to the left, where x is greater than 180
-      = make sure the sub rotate correctly, the sub should rotate in opposite
+      = make sure the sub rotates correctly, the sub should rotate in opposite
       direction and
     6. keep rotating right for x seconds, where x needs to be long enough for
        the sub to at least finish one cycle
-      = make sure the sub rotate correctly
+      = make sure the sub rotates correctly
     7. keep rotating left for x seconds, where x needs to be long enough for
        the sub to at least finish one cycle
-      = make sure the sub rotate correctly
+      = make sure the sub rotates correctly
     8. rotate right 180 degrees and then rotate right 180 degrees to finish
        a cycle
-      = make sure the sub rotate correctly
+      = make sure the sub rotates correctly
       = estimate the time for the sub to move from a task to another task
     9. rotate left 180 degrees and then rotate left 180 degrees to finish a
        cycle
-      = make sure the sub rotate correctly
+      = make sure the sub rotates correctly
+
+3. movement_control
+
+  - checklist
+    = mode 1: 2d-movement with different power
+    = mode 5: turn on the motors for specific time
+
+  - variables to check
+    = mControl.power
+    = mControl.runningTime
+
+  - test case:
+    1. keep going forward in mode 1 with power x
+      = make sure the sub is moving properly
+      = make sure the power is properly
+      = check the leveling and rotation while moving
+    2. keep going right in mode 1 with power x
+      = make sure the sub is moving properly
+    3. keep going backward in mode 1 with power x
+      = make sure the sub is moving properly
+    4. keep going left in mode 1 with power x
+      = make sure the sub is moving properly
+    5. moving forward in mode 5 with power x and time y
+      = make sure the sub is moving properly
+    6. moving right in mode 5 with power x and time y
+      = make sure the sub is moving properly
+    7. moving backward in mode 5 with power x and time y
+      = make sure the sub is moving properly
+    8. moving left in mode 5 with power x and time y
+      = make sure the sub is moving properly
+    9. keep going forward in mode 1 with power x
+      = estimate the time for the sub to reach the maximum speed (et)
+    10. moving forward in mode 5 with power x and time y1 (y1 = 3 * et) and
+        moving backward in mode 5 with power x and time y2 (y2 = et)
+      = observe the sub and find the acceptable time for the sub to stop and
+        stay still
+      = estimate the distance for the sub to reach the maximum speed and the
+        distance for the sub to brake to speed 0
+      = estimate the velocity between y1 and y2 (during maximum speed)
+    11. utilize the data we gathered and ask the sub to move a square shape with
+        side x
+      = make sure the sub is moving properly

@@ -21,10 +21,12 @@
 
 // movement_control: (int) state, (int) mDirection, (float) power, (float) distance
 // state: off (0), adjust with power (1), ajust with distance (2),
-//        centered with front camera (3), centered with bottom camera (4)
+//        centered with front camera (3), centered with bottom camera (4),
+//        turn on motor with specific time (5)
 // mDirection: none (0), forward (1), right (2), backward (3), left(4)
 // power: none (0), motor power (x)
 // distance: distance away from the object (x)
+// time: time for the motor to turn on
 
 // target_info: (int) state, (float) angle, (float) height, (int) direction
 // state: not found (0), found (1)
@@ -63,7 +65,6 @@ void frontCamDistanceCallback(const auv_cal_state_la_2017::FrontCamDistance fcd)
 void bottomCamDistanceCallback(const auv_cal_state_la_2017::BottomCamDistance bcd);
 void targetInfoCallback(const auv_cal_state_la_2017::TargetInfo ti);
 
-
 //Regular functions
 void checkMotorNode();
 void checkCVNode();
@@ -76,6 +77,8 @@ const float heightError = 0.2;
 int directionToMove;
 float angleToTurn;
 float heightToMove;
+float xFtToDepth;
+float xDToTurn;
 //float currentTargetDepth;
 //float currentTargetRotation;
 
@@ -104,9 +107,12 @@ bool objectFound;
 
 //Task variables
 bool task0_submergeToWater;
-bool task_submerge8Ft;
-bool task_rotateRight90D;
-bool task_emerge5Ft;
+bool task_submergeXFt;
+bool task_turnOnMotors;
+bool task_emergeXft;
+bool task_emergeToTop;
+bool task_rotateRightXD;
+bool task_rotateLeftXD;
 bool task_cv_getTargetInfo_1;
 bool task_cv_beforeCenter_1;
 bool task_cv_centering_1;
@@ -133,6 +139,9 @@ int main(int argc, char **argv){
   //currentTargetDepth = 0;
   //currentTargetRotation = 0;
 
+  xFtToDepth = 0;
+  xDToTurn = 0;
+
   checkingCurrentDepth = false;
   checkingHeightControl = false;
   checkingFrontCamDistance = false;
@@ -142,7 +151,7 @@ int main(int argc, char **argv){
   checkingMovementControl = false;
   checkingTargetInfo = false;
   motorNodeIsReady = false;
-  cvNodeIsReady = false;
+  cvNodeIsReady = true;
   allNodesAreReady = false;
 
   directionToMove = 0;
@@ -151,13 +160,16 @@ int main(int argc, char **argv){
 
   resetBoolVariables();
 
-  task0_submergeToWater = true;     //Task 0 - make sure the sub is submerged
-  task_submerge8Ft = true;         //Task 1 - submerge 8 ft
-  task_rotateRight90D = true;      //Task 2 - rotate right 90 degrees
-  task_emerge5Ft = true;           //Task 3 - emerge 5 ft
-  task_cv_getTargetInfo_1 = false;  //Task 4 - cv test 1 (get target_info)
-  task_cv_beforeCenter_1 = false;   //Task 5 - cv test 2 (find object before center)
-  task_cv_centering_1 = false;      //Task 6 - cv test 3 (centering the sub)
+  task0_submergeToWater = true;
+  task_turnOnMotors = false;
+  task_submergeXFt = false;
+  task_emergeXft = true;
+  task_emergeToTop = true;
+  task_rotateRightXD = true;
+  task_rotateLeftXD = false;
+  task_cv_getTargetInfo_1 = true;
+  task_cv_beforeCenter_1 = true;
+  task_cv_centering_1 = true;
 
 
   ROS_INFO("Master starts running. Checking each topic...");
@@ -179,6 +191,7 @@ int main(int argc, char **argv){
       mControl.mDirection = 0;
       mControl.power = 0;
       mControl.distance = 0;
+      mControl.runningTime = 0;
       mControlPublisher.publish(mControl);
     }
 
@@ -203,13 +216,12 @@ int main(int argc, char **argv){
     loop_rate.sleep();
   }
 
-
   //Task =======================================================================
-  while(ros::ok() && !task_submerge8Ft){
+  while(ros::ok() && !task_turnOnMotors){
     //Sending command to height_control...
     if(!receivedFromHControl){
-      hControl.state = 0;
-      hControl.depth = 8;
+      hControl.state = 4;
+      hControl.depth = 9;
       hControlPublisher.publish(hControl);
     }
     settingCVInfo(0,0,0,0,0,0);
@@ -221,11 +233,62 @@ int main(int argc, char **argv){
   resetBoolVariables();
 
   //Task =======================================================================
-  while (ros::ok() && !task_rotateRight90D){
+  xFtToDepth = 2;
+  while(ros::ok() && !task_submergeXFt){
+    //Sending command to height_control...
+    if(!receivedFromHControl){
+      hControl.state = 0;
+      hControl.depth = xFtToDepth;
+      hControlPublisher.publish(hControl);
+    }
+    settingCVInfo(0,0,0,0,0,0);
+    cvInfoPublisher.publish(cvInfo);
+    ros::spinOnce();
+    loop_rate.sleep();
+  }
+
+  resetBoolVariables();
+
+  //Task =======================================================================
+  xFtToDepth = 2;
+  while (ros::ok() && !task_emergeXft){
+    //Sending command to height_control...
+    if(!receivedFromHControl){
+      hControl.state = 2;
+      hControl.depth = xFtToDepth;
+      hControlPublisher.publish(hControl);
+    }
+    settingCVInfo(0,0,0,0,0,0);
+    cvInfoPublisher.publish(cvInfo);
+    ros::spinOnce();
+    loop_rate.sleep();
+  }
+
+  resetBoolVariables();
+
+  //Task =======================================================================
+  while (ros::ok() && !task_emergeToTop){
+    //Sending command to height_control...
+    if(!receivedFromHControl){
+      hControl.state = 2;
+      hControl.depth = -1;
+      hControlPublisher.publish(hControl);
+    }
+    settingCVInfo(0,0,0,0,0,0);
+    cvInfoPublisher.publish(cvInfo);
+    ros::spinOnce();
+    loop_rate.sleep();
+  }
+
+  resetBoolVariables();
+
+  //Task =======================================================================
+  xDToTurn = 340;
+  while (ros::ok() && !task_rotateRightXD){
     //Sending command to rotate_control...
     if(!receivedFromRControl){
       rControl.state = 2;
-      rControl.rotation = 90;
+      rControl.rotation = xDToTurn;
       rControlPublisher.publish(rControl);
     }
     settingCVInfo(0,0,0,0,0,0);
@@ -237,12 +300,13 @@ int main(int argc, char **argv){
   resetBoolVariables();
 
   //Task =======================================================================
-  while (ros::ok() && !task_emerge5Ft){
-    //Sending command to height_control...
-    if(!receivedFromHControl){
-      hControl.state = 2;
-      hControl.depth = 5;
-      hControlPublisher.publish(hControl);
+  xDToTurn = 340;
+  while (ros::ok() && !task_rotateLeftXD){
+    //Sending command to rotate_control...
+    if(!receivedFromRControl){
+      rControl.state = 0;
+      rControl.rotation = xDToTurn;
+      rControlPublisher.publish(rControl);
     }
     settingCVInfo(0,0,0,0,0,0);
     cvInfoPublisher.publish(cvInfo);
@@ -341,6 +405,7 @@ int main(int argc, char **argv){
           mControl.mDirection = 4;
         mControl.power = 50;
         mControl.distance = 0;
+        mControl.runningTime = 0;
         mControlPublisher.publish(mControl);
       }
       settingCVInfo(1,1,2,3,4,5);
@@ -357,6 +422,7 @@ int main(int argc, char **argv){
       mControl.mDirection = 0;
       mControl.power = 0;
       mControl.distance = 0;
+      mControl.runningTime = 0;
       mControlPublisher.publish(mControl);
       settingCVInfo(1,1,2,3,4,5);
       cvInfoPublisher.publish(cvInfo);
@@ -377,6 +443,7 @@ int main(int argc, char **argv){
       mControl.mDirection = 0;
       mControl.power = 0;
       mControl.distance = 0;
+      mControl.runningTime = 0;
       mControlPublisher.publish(mControl);
     }
     settingCVInfo(1,1,2,3,4,5);
@@ -388,6 +455,7 @@ int main(int argc, char **argv){
   resetBoolVariables();
 
   //Executing... ===============================================================
+  ROS_INFO("Missions completed!");
   while(ros::ok()){
     settingCVInfo(0,0,0,0,0,0);
     cvInfoPublisher.publish(cvInfo);
@@ -431,9 +499,12 @@ void currentDepthCallback(const std_msgs::Float32& currentDepth){
        ROS_INFO("Sub is now under water... Ready to get start...");
     }
   }
-  else if(!task_submerge8Ft){}
-  else if(!task_rotateRight90D){}
-  else if(!task_emerge5Ft){}
+  else if(!task_turnOnMotors){}
+  else if(!task_submergeXFt){}
+  else if(!task_emergeXft){}
+  else if(!task_emergeToTop){}
+  else if(!task_rotateRightXD){}
+  else if(!task_rotateLeftXD){}
   else if(!task_cv_getTargetInfo_1){}
   else if(!task_cv_beforeCenter_1){}
   else if(!task_cv_centering_1){}
@@ -448,9 +519,12 @@ void currentRotationCallback(const std_msgs::Float32& currentRotation){
     }
   }
   else if(!task0_submergeToWater){}
-  else if(!task_submerge8Ft){}
-  else if(!task_rotateRight90D){}
-  else if(!task_emerge5Ft){}
+  else if(!task_turnOnMotors){}
+  else if(!task_submergeXFt){}
+  else if(!task_emergeXft){}
+  else if(!task_emergeToTop){}
+  else if(!task_rotateRightXD){}
+  else if(!task_rotateLeftXD){}
   else if(!task_cv_getTargetInfo_1){}
   else if(!task_cv_beforeCenter_1){}
   else if(!task_cv_centering_1){}
@@ -470,9 +544,12 @@ void frontCamDistanceCallback(const auv_cal_state_la_2017::FrontCamDistance fcd)
     }
   }
   else if(!task0_submergeToWater){}
-  else if(!task_submerge8Ft){}
-  else if(!task_rotateRight90D){}
-  else if(!task_emerge5Ft){}
+  else if(!task_turnOnMotors){}
+  else if(!task_submergeXFt){}
+  else if(!task_emergeXft){}
+  else if(!task_emergeToTop){}
+  else if(!task_rotateRightXD){}
+  else if(!task_rotateLeftXD){}
   else if(!task_cv_getTargetInfo_1){}
   else if(!task_cv_beforeCenter_1){}
   else if(!task_cv_centering_1){}
@@ -492,9 +569,12 @@ void bottomCamDistanceCallback(const auv_cal_state_la_2017::BottomCamDistance bc
     }
   }
   else if(!task0_submergeToWater){}
-  else if(!task_submerge8Ft){}
-  else if(!task_rotateRight90D){}
-  else if(!task_emerge5Ft){}
+  else if(!task_turnOnMotors){}
+  else if(!task_submergeXFt){}
+  else if(!task_emergeXft){}
+  else if(!task_emergeToTop){}
+  else if(!task_rotateRightXD){}
+  else if(!task_rotateLeftXD){}
   else if(!task_cv_getTargetInfo_1){}
   else if(!task_cv_beforeCenter_1){}
   else if(!task_cv_centering_1){}
@@ -516,33 +596,60 @@ void hControlStatusCallback(const auv_cal_state_la_2017::HControl hc){
     }
   }
   else if(!task0_submergeToWater){}
-  else if(!task_submerge8Ft){
+  else if(!task_turnOnMotors){
     if(!receivedFromHControl){
-      ROS_INFO("Sending command to height_control - submerge 8 ft");
+      ROS_INFO("Sending command to height_control - turn on the motors");
     }
-    if(!receivedFromHControl && hc.state == 0 && hc.depth == 8){
+    if(!receivedFromHControl && hc.state == 4 && hc.depth == 9){
+      receivedFromHControl = true;
+      ROS_INFO("height_control message received - motors are on");
+    }
+    if(receivedFromHControl && hc.state == 1 && hc.depth == 0){
+      task_turnOnMotors = true;
+      ROS_INFO("Sub reached the initial assigned depth.\n");
+    }
+  }
+  else if(!task_submergeXFt){
+    if(!receivedFromHControl){
+      ROS_INFO("Sending command to height_control - submerge x ft");
+    }
+    if(!receivedFromHControl && hc.state == 0 && hc.depth == xFtToDepth){
       receivedFromHControl = true;
       ROS_INFO("height_control message received - submerging...");
     }
     if(receivedFromHControl && hc.state == 1 && hc.depth == 0){
-      task_submerge8Ft = true;
-      ROS_INFO("Task 1 completed! Sub is now 8 ft below the water.");
+      task_submergeXFt = true;
+      ROS_INFO("Suberging completed.\n");
     }
   }
-  else if(!task_rotateRight90D){}
-  else if(!task_emerge5Ft){
+  else if(!task_emergeXft){
     if(!receivedFromHControl){
-      ROS_INFO("Sending command to height_control - emerge 5 ft");
+      ROS_INFO("Sending command to height_control - emerge x ft");
     }
-    if(!receivedFromHControl && hc.state == 2 && hc.depth == 5){
+    if(!receivedFromHControl && hc.state == 2 && hc.depth == xFtToDepth){
       receivedFromHControl = true;
       ROS_INFO("height_control message received - emerging...");
     }
     if(receivedFromHControl && hc.state == 1 && hc.depth == 0){
-      task_emerge5Ft = true;
-      ROS_INFO("Task 3 completed! Sub is now 3 ft below the water.");
+      task_emergeXft = true;
+      ROS_INFO("Emerging completed.\n");
     }
   }
+  else if(!task_emergeToTop){
+    if(!receivedFromHControl){
+      ROS_INFO("Sending command to height_control - emerge to top");
+    }
+    if(!receivedFromHControl && hc.state == 2 && hc.depth == -1){
+      receivedFromHControl = true;
+      ROS_INFO("height_control message received - emerging...");
+    }
+    if(receivedFromHControl && hc.state == 1 && hc.depth == 0){
+      task_emergeToTop = true;
+      ROS_INFO("Emerging completed.\n");
+    }
+  }
+  else if(!task_rotateRightXD){}
+  else if(!task_rotateLeftXD){}
   else if(!task_cv_getTargetInfo_1){
     if(!doneHeightControl){
       if(!receivedFromHControl && hc.state != 1 && hc.depth == hControl.depth){
@@ -572,21 +679,36 @@ void rControlStatusCallback(const auv_cal_state_la_2017::RControl rc){
     }
   }
   else if(!task0_submergeToWater){}
-  else if(!task_submerge8Ft){}
-  else if(!task_rotateRight90D){
+  else if(!task_turnOnMotors){}
+  else if(!task_submergeXFt){}
+  else if(!task_emergeXft){}
+  else if(!task_emergeToTop){}
+  else if(!task_rotateRightXD){
     if(!receivedFromRControl){
-      ROS_INFO("Sending commend to rotation_control - rotate right 90 degrees");
+      ROS_INFO("Sending commend to rotation_control - rotate right x degrees");
     }
-    if(!receivedFromRControl && rc.state == 2 && rc.rotation == 90){
+    if(!receivedFromRControl && rc.state == 2 && rc.rotation == xDToTurn){
       receivedFromRControl = true;
       ROS_INFO("rotation_control message received - rotating...");
     }
     if(receivedFromRControl && rc.state == 1 && rc.rotation == 0){
-      task_rotateRight90D = true;
-      ROS_INFO("Task 2 completed! Sub is now at rotation 90 degrees.");
+      task_rotateRightXD = true;
+      ROS_INFO("Rotating completed.\n");
     }
   }
-  else if(!task_emerge5Ft){}
+  else if(!task_rotateLeftXD){
+    if(!receivedFromRControl){
+      ROS_INFO("Sending commend to rotation_control - rotate left x degrees");
+    }
+    if(!receivedFromRControl && rc.state == 0 && rc.rotation == xDToTurn){
+      receivedFromRControl = true;
+      ROS_INFO("rotation_control message received - rotating...");
+    }
+    if(receivedFromRControl && rc.state == 1 && rc.rotation == 0){
+      task_rotateLeftXD = true;
+      ROS_INFO("Rotating completed.\n");
+    }
+  }
   else if(!task_cv_getTargetInfo_1){
     if(!doneRotationControl){
       if(!receivedFromRControl && rc.state != 1 && rc.rotation == rControl.rotation){
@@ -605,7 +727,7 @@ void mControlStatusCallback(const auv_cal_state_la_2017::MControl mc){
   if(!allNodesAreReady){
     if(!checkingMovementControl){
       ROS_INFO("Checking movement_control...");
-      if(mc.state == 0 && mc.mDirection == 0 && mc.power == 0 && mc.distance == 0){
+      if(mc.state == 0 && mc.mDirection == 0 && mc.power == 0 && mc.distance == 0 && mc.runningTime == 0){
         checkingMovementControl = true;
         ROS_INFO("movement_control is ready.");
         checkMotorNode();
@@ -616,9 +738,12 @@ void mControlStatusCallback(const auv_cal_state_la_2017::MControl mc){
     }
   }
   else if(!task0_submergeToWater){}
-  else if(!task_submerge8Ft){}
-  else if(!task_rotateRight90D){}
-  else if(!task_emerge5Ft){}
+  else if(!task_turnOnMotors){}
+  else if(!task_submergeXFt){}
+  else if(!task_emergeXft){}
+  else if(!task_emergeToTop){}
+  else if(!task_rotateRightXD){}
+  else if(!task_rotateLeftXD){}
   else if(!task_cv_getTargetInfo_1){}
   else if(!task_cv_beforeCenter_1){
     if(!receivedFromMControl){
@@ -660,9 +785,12 @@ void targetInfoCallback(const auv_cal_state_la_2017::TargetInfo ti){
     }
   }
   else if(!task0_submergeToWater){}
-  else if(!task_submerge8Ft){}
-  else if(!task_rotateRight90D){}
-  else if(!task_emerge5Ft){}
+  else if(!task_turnOnMotors){}
+  else if(!task_submergeXFt){}
+  else if(!task_emergeXft){}
+  else if(!task_emergeToTop){}
+  else if(!task_rotateRightXD){}
+  else if(!task_rotateLeftXD){}
   else if(!task_cv_getTargetInfo_1){
     //Object found
     if(!objectFound && ti.state == 1){

@@ -68,10 +68,13 @@ float assignedYaw;
 //Initialize ROS node
 const float rotationUpperBound = 166.2;
 const float rotationLowerBound = -193.8;
+const float topDepth = 1;
 const float bottomDepth = 12;
 int mControlDirection;
 float mControlPower;
 float mControlDistance;
+float mControlRunningTime;
+float mControlMode5Timer;
 float frontCamForwardDistance;
 float frontCamHorizontalDistance;
 float frontCamVerticalDistance;
@@ -79,6 +82,7 @@ float bottomCamForwardDistance;
 float bottomCamHorizontalDistance;
 float bottomCamVerticalDistance;
 float centerTimer;
+bool subIsReady;
 bool isGoingUp;
 bool isGoingDown;
 bool isTurningRight;
@@ -89,6 +93,8 @@ bool mControlMode1;
 bool mControlMode2;
 bool mControlMode3;
 bool mControlMode4;
+bool mControlMode5;
+int mControlMode5Direction;
 bool keepMovingForward;
 bool keepMovingRight;
 bool keepMovingBackward;
@@ -167,6 +173,8 @@ void setup() {
   mControlDirection = 0;
   mControlPower = 0;
   mControlDistance = 0;
+  mControlRunningTime = 0;
+  mControlMode5Timer = 0;
   frontCamForwardDistance = 0;
   frontCamHorizontalDistance = 0;
   frontCamVerticalDistance = 0;
@@ -174,6 +182,7 @@ void setup() {
   bottomCamHorizontalDistance = 0;
   bottomCamVerticalDistance = 0;
   centerTimer = 0;
+  subIsReady = false;
   isGoingUp = false;
   isGoingDown = false;
   isTurningRight = false;
@@ -184,6 +193,7 @@ void setup() {
   mControlMode2 = false;
   mControlMode3 = false;
   mControlMode4 = false;
+  mControlMode5 = false;
   keepMovingForward = false;
   keepMovingRight = false;
   keepMovingBackward = false;
@@ -195,7 +205,7 @@ void setup() {
   positionX = 0;
   positionY = 0;
 
-  assignedDepth = feetDepth_read;
+  assignedDepth = topDepth;
   currentDepth.data = feetDepth_read;
   
   assignedYaw = yaw;
@@ -215,6 +225,7 @@ void setup() {
   mControlStatus.mDirection = 0;
   mControlStatus.power = 0;
   mControlStatus.distance = 0;
+  mControlStatus.runningTime = 0;
   
   nh.initNode();
   nh.subscribe(hControlSubscriber);
@@ -272,8 +283,7 @@ void loop() {
     //yaw   -= 13.8; // Declination at Danville, California is 13 degrees 48 minutes and 47 seconds on 2014-04-04
     roll  *= 180.0f / PI;
 
-   //****************************NEED TO CHECK WITH ERICK!!
-  }//****************************The bracket was not here before!
+  }
 
   //Depth
   //Testing----------------------
@@ -286,10 +296,12 @@ void loop() {
   dutyCycl_orient = degreeToTurn() / 180.0;
   PWM_Motors_orient = dutyCycl_orient * 200; //Maximum is 200
 
-  //Apply on Motors
-  heightControl();
-  rotationControl();
-  movementControl();
+  if(subIsReady){
+    //Apply on Motors
+    heightControl();
+    rotationControl();
+    movementControl();
+  }
 
   //Update and publish current data to master
   currentDepth.data = feetDepth_read;
@@ -310,45 +322,60 @@ void hControlCallback(const auv_cal_state_la_2017::HControl& hControl) {
   float depth = hControl.depth;  
   dtostrf(depth, 4, 2, depthChar);
 
-  if(hControl.state == 0){  
-    if(!isGoingUp && !isGoingDown){
-      if(depth == -1 || depth + assignedDepth >= bottomDepth)
-        assignedDepth = bottomDepth;
-      else
-        assignedDepth = assignedDepth + depth;
-      isGoingDown = true;
-      nh.loginfo("Going down...");
-      nh.loginfo(depthChar);
-      nh.loginfo("ft...(-1 means infinite)\n");
-      hControlStatus.state = 0;
-      hControlStatus.depth = depth;
-    }else
-      nh.loginfo("Sub is still running. Command abort.");
-  }
-  else if(hControl.state == 1){  
-    if(isGoingUp || isGoingDown){
-      isGoingUp = false;
-      isGoingDown = false;
-      nh.loginfo("Height control is now cancelled\n");
+  if(!subIsReady){
+    if(hControl.state == 4 && hControl.depth == 9){
+      subIsReady = true;
+      nh.loginfo("The motors have been unlocked.\n");
+      hControlStatus.state = 4;
+      hControlStatus.depth = 9;
     }
-    assignedDepth = feetDepth_read;
-    hControlStatus.state = 1;
-    hControlStatus.depth = 0;
+    else{
+      nh.loginfo("The sub has not ready yet. Resend the right message to unlock the motors.\n");
+      hControlStatus.state = hControl.state;
+      hControlStatus.depth = hControl.depth;
+    }
   }
-  else if(hControl.state == 2){
-    if(!isGoingUp && !isGoingDown){
-      if(depth == -1 || depth >= assignedDepth)
-        assignedDepth = 0;
-      else 
-        assignedDepth = assignedDepth - depth;
-      isGoingUp = true;
-      nh.loginfo("Going up...");
-      nh.loginfo(depthChar);
-      nh.loginfo("ft...(-1 means infinite)\n");
-      hControlStatus.state = 2;
-      hControlStatus.depth = depth;
-    }else
-      nh.loginfo("Sub is still running.Command abort.");
+  else{
+    if(hControl.state == 0){  
+      if(!isGoingUp && !isGoingDown){
+        if(depth == -1 || depth + assignedDepth >= bottomDepth)
+          assignedDepth = bottomDepth;
+        else
+          assignedDepth = assignedDepth + depth;
+        isGoingDown = true;
+        nh.loginfo("Going down...");
+        nh.loginfo(depthChar);
+        nh.loginfo("ft...(-1 means infinite)\n");
+        hControlStatus.state = 0;
+        hControlStatus.depth = depth;
+      }else
+        nh.loginfo("Sub is still running. Command abort.");
+    }
+    else if(hControl.state == 1){  
+      if(isGoingUp || isGoingDown){
+        isGoingUp = false;
+        isGoingDown = false;
+        nh.loginfo("Height control is now cancelled\n");
+      }
+      assignedDepth = feetDepth_read;
+      hControlStatus.state = 1;
+      hControlStatus.depth = 0;
+    }
+    else if(hControl.state == 2){
+      if(!isGoingUp && !isGoingDown){
+        if(depth == -1 || depth >= assignedDepth - topDepth)
+          assignedDepth = topDepth;
+        else 
+          assignedDepth = assignedDepth - depth;
+        isGoingUp = true;
+        nh.loginfo("Going up...");
+        nh.loginfo(depthChar);
+        nh.loginfo("ft...(-1 means infinite)\n");
+        hControlStatus.state = 2;
+        hControlStatus.depth = depth;
+      }else
+        nh.loginfo("Sub is still running.Command abort.");
+    }
   }
   hControlPublisher.publish(&hControlStatus);
   
@@ -357,7 +384,7 @@ void hControlCallback(const auv_cal_state_la_2017::HControl& hControl) {
 
 void rControlCallback(const auv_cal_state_la_2017::RControl& rControl){
   
-  char rotationChar[6];
+  char rotationChar[11];
   float rotation = rControl.rotation;   
   dtostrf(rotation, 4, 2, rotationChar);
 
@@ -425,18 +452,22 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
   String directionStr;
   char powerChar[6];
   char distanceChar[6];
+  char timeChar[6];
   float power = mControl.power;
   float distance = mControl.distance;
+  float mode5Time = mControl.runningTime;
   dtostrf(power, 4, 2, powerChar);
   dtostrf(distance, 4, 2, distanceChar);
+  dtostrf(mode5Time, 4, 2, timeChar);
   
 
   if(mControl.state == 0){
-    if(mControlMode1 || mControlMode2|| mControlMode3 || mControlMode4){
+    if(mControlMode1 || mControlMode2|| mControlMode3 || mControlMode4 || mControlMode5){
       mControlMode1 = false;
       mControlMode2 = false;
       mControlMode3 = false;
       mControlMode4 = false;
+      mControlMode5 = false;
       keepMovingForward = false;
       keepMovingRight = false;
       keepMovingBackward = false;
@@ -450,9 +481,10 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
     mControlStatus.mDirection = 0;
     mControlStatus.power = 0;
     mControlStatus.distance = 0;
+    mControlStatus.runningTime = 0;
   }
   else if(mControl.state == 1){
-    if(mControlMode1 || mControlMode2|| mControlMode3 || mControlMode4)
+    if(mControlMode1 || mControlMode2|| mControlMode3 || mControlMode4 || mControlMode5)
       nh.loginfo("Sub is still moving. Command abort.");
     else if(mControl.mDirection != 1 && mControl.mDirection != 2 && mControl.mDirection != 3 && mControl.mDirection != 4)
       nh.loginfo("Invalid direction with state 1. Please check the program and try again.\n");
@@ -461,40 +493,39 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
     else{
       if(mControl.mDirection == 1){
         keepMovingForward = true;
-        mControlDirection = 1;
         directionStr = "forward";
       }
       else if(mControl.mDirection == 2){
         keepMovingRight = true;
-        mControlDirection = 2;
         directionStr = "right";
       }
       else if(mControl.mDirection == 3){
         keepMovingBackward = true;
-        mControlDirection = 3;
         directionStr = "backward";
       }
       else if(mControl.mDirection == 4){
         keepMovingLeft = true;
-        mControlDirection = 4;
         directionStr = "left";
       }
+      
       directionStr = "Moving " + directionStr + " with power..."; 
       nh.loginfo(directionStr.c_str());
       nh.loginfo(powerChar);
       nh.loginfo("...\n");
       
       mControlMode1 = true;
+      mControlDirection = mControl.mDirection;
       mControlPower = mControl.power;
       mControlDistance = 0;
       mControlStatus.state = 1;
-      mControlStatus.mDirection = mControl.mDirection;
+      mControlStatus.mDirection = mControlDirection;
       mControlStatus.power = mControlPower;
       mControlStatus.distance = 0;
+      mControlStatus.runningTime = 0;
     }   
   }
   else if(mControl.state == 2){
-    if(mControlMode1 || mControlMode2|| mControlMode3 || mControlMode4)
+    if(mControlMode1 || mControlMode2|| mControlMode3 || mControlMode4 || mControlMode5)
       nh.loginfo("Sub is still moving. Command abort.");
     else if(mControl.mDirection != 1)
       nh.loginfo("Invalid direction with state 2. Please check the program and try again.\n");
@@ -510,10 +541,11 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
       mControlStatus.mDirection = 1;
       mControlStatus.power = 0;
       mControlStatus.distance = mControlDistance;
+      mControlStatus.runningTime = 0;
     }
   }
   else if(mControl.state == 3){
-    if(mControlMode1 || mControlMode2|| mControlMode3 || mControlMode4)
+    if(mControlMode1 || mControlMode2|| mControlMode3 || mControlMode4 || mControlMode5)
       nh.loginfo("Sub is still moving. Command abort.");
     else{
       nh.loginfo("Centering the sub with target from the front camera...\n");
@@ -525,10 +557,11 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
       mControlStatus.mDirection = 0;
       mControlStatus.power = 0;
       mControlStatus.distance = 0;
+      mControlStatus.runningTime = 0;
     }
   }
   else if(mControl.state == 4){
-    if(mControlMode1 || mControlMode2 || mControlMode3 || mControlMode4)
+    if(mControlMode1 || mControlMode2 || mControlMode3 || mControlMode4 || mControlMode5)
       nh.loginfo("Sub is still moving. Command abort.");
     else{
       nh.loginfo("Centering the sub with target from the bottom camera...\n");
@@ -540,7 +573,49 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
       mControlStatus.mDirection = 0;
       mControlStatus.power = 0;
       mControlStatus.distance = 0;
+      mControlStatus.runningTime = 0;
     }
+  }
+  else if(mControl.state == 5){
+    if(mControlMode1 || mControlMode2|| mControlMode3 || mControlMode4 || mControlMode5)
+      nh.loginfo("Sub is still moving. Command abort.");
+    else if(mControl.mDirection != 1 && mControl.mDirection != 2 && mControl.mDirection != 3 && mControl.mDirection != 4)
+      nh.loginfo("Invalid direction with state 5. Please check the program and try again.\n");
+    else if(mControl.power == 0)
+      nh.loginfo("Invalid power with state 5. Please check the program and try again.");
+    else{
+      if(mControl.mDirection == 1){
+        directionStr = "forward";
+      }
+      else if(mControl.mDirection == 2){
+        directionStr = "right";
+      }
+      else if(mControl.mDirection == 3){
+        directionStr = "backward";
+      }
+      else if(mControl.mDirection == 4){
+        directionStr = "left";
+      }
+      
+      directionStr = "Moving " + directionStr + " with power..."; 
+      nh.loginfo(directionStr.c_str());
+      nh.loginfo(powerChar);
+      nh.loginfo("for...");
+      nh.loginfo(timeChar);
+      nh.loginfo("seconds...\n");
+
+      mControlMode5 = true;
+      mControlMode5Timer = 0;
+      mControlDirection = mControl.mDirection;
+      mControlPower = mControl.power;
+      mControlRunningTime = mControl.runningTime;
+      mControlDistance = 0;
+      mControlStatus.state = 1;
+      mControlStatus.mDirection = mControl.mDirection;
+      mControlStatus.power = mControlPower;
+      mControlStatus.distance = 0;
+      mControlStatus.runningTime = mControlRunningTime;
+    }  
   }
   mControlPublisher.publish(&mControlStatus);
   
@@ -957,15 +1032,49 @@ void movementControl(){
       }
     }
   }
+  else if(mControlMode5){
+    //forward
+    if(mControlDirection == 1){
+      //Turn on forward motors with specific power => stored in variable mControlPower
+      //Testing-------------------
+      positionY += 0.5;
+    }
+    //right
+    else if(mControlDirection == 2){
+      //Turn on right motors with specific power => stored in variable mControlPower
+      //Testing-------------------
+      positionX += 0.5;
+    }
+    //backward
+    else if(mControlDirection == 3){
+      //Turn on back motors with specific power => stored in variable mControlPower
+      //Testing-------------------
+      positionY -= 0.5;
+    }
+    //left
+    else if(mControlDirection == 4){
+      //Turn on left motors with specific power => stored in variable mControlPower
+      //Testing-------------------
+      positionX -= 0.5;
+    }
+    mControlMode5Timer += 0.1;
+    if(mControlMode5Timer > mControlRunningTime){
+      mControlMode5 = false;
+      nh.loginfo("Motors are now off.\n");
+    }
+  }
   else{
     centerTimer = 0;
+    mControlMode5Timer = 0;
     mControlDirection = 0;
+    mControlRunningTime = 0;
     mControlPower = 0;
     mControlDistance = 0;
     mControlStatus.state = 0;
     mControlStatus.mDirection = 0;
     mControlStatus.power = 0;
     mControlStatus.distance = 0;
+    mControlStatus.runningTime = 0;
     mControlPublisher.publish(&mControlStatus);
   }
   
