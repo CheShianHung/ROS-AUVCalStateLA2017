@@ -2,10 +2,10 @@ clear;
 clc;
 %% Given Constants
 
-output = 20;
-color_choice = 8;   % integer from 1-4; colors listed below
-camdevice = 'webcam';   % 'webcam' 'image' 'usb'
-videofeed = 4; % shows results
+thresh = 20;
+color_choice = 4;   % integer from 1-4; colors listed below
+camdevice = 'image';   % 'webcam' 'image' 'usb'
+videofeed = 1; % shows results
 
 %% Colors
 
@@ -34,7 +34,7 @@ color = single([]); % cv.cvtColor() needs values between 0-1
 color(1,1,:) = colors_list{color_choice,2}; % pick color from RGB choices
 color = cv.cvtColor(color./255,'RGB2Lab');     % convert color choice to LAB colorspace
 color = int8(color); % Lab values are between -128:128
-color = [color-output,color+output]; % make a color threshold range
+color = [color-thresh,color+thresh]; % make a color threshold range
 
 %% Camera initialization
 
@@ -137,6 +137,7 @@ while 1
         edge = edge - center;
         theta = -atan2d(edge(1),edge(2));
         
+        [~,radius] =  cv.minEnclosingCircle(cnt{1});
         %         delta_h = (origin(2)-center(2))./10;
         %         delta_x = double((origin(1)-center(1))./10);
         
