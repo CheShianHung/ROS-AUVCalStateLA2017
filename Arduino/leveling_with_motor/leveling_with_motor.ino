@@ -82,6 +82,10 @@ float bottomCamForwardDistance;
 float bottomCamHorizontalDistance;
 float bottomCamVerticalDistance;
 float centerTimer;
+float rotationTimer;
+float rotationTime;
+float movementTimer;
+float movementTime;
 bool subIsReady;
 bool isGoingUp;
 bool isGoingDown;
@@ -182,6 +186,10 @@ void setup() {
   bottomCamHorizontalDistance = 0;
   bottomCamVerticalDistance = 0;
   centerTimer = 0;
+  rotationTimer = 0;
+  rotationTime = 10;
+  movementTimer = 0;
+  movementTime = 10;
   subIsReady = false;
   isGoingUp = false;
   isGoingDown = false;
@@ -302,6 +310,11 @@ void loop() {
     rotationControl();
     movementControl();
   }
+  else{
+    hControlStatus.state = 4;
+    hControlStatus.depth = 9;
+    hControlPublisher.publish(&hControlStatus);
+  }
 
   //Update and publish current data to master
   currentDepth.data = feetDepth_read;
@@ -390,8 +403,11 @@ void rControlCallback(const auv_cal_state_la_2017::RControl& rControl){
 
   if(rControl.state == 0){  
     if(!isTurningRight && !isTurningLeft){
-      if(rotation == -1) 
+      if(rotation == -1) {
         keepTurningLeft = true;
+        //Testing---------------------------------------------------
+        rotationTimer = 0;
+      }
       else{     
         if (yaw + rotation >= rotationUpperBound) 
           assignedYaw = yaw + rotation - 360;
@@ -421,8 +437,11 @@ void rControlCallback(const auv_cal_state_la_2017::RControl& rControl){
   }
   else if(rControl.state == 2){
     if(!isTurningRight && !isTurningLeft){
-      if(rotation == -1) 
+      if(rotation == -1) {
         keepTurningRight = true;
+        //Testing---------------------------------------------------------------
+        rotationTimer = 0;
+      }
       else{
         if (yaw - rotation < rotationLowerBound) 
           assignedYaw = yaw - rotation + 360;
@@ -450,9 +469,9 @@ void rControlCallback(const auv_cal_state_la_2017::RControl& rControl){
 void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
 
   String directionStr;
-  char powerChar[6];
-  char distanceChar[6];
-  char timeChar[6];
+  char powerChar[11];
+  char distanceChar[11];
+  char timeChar[11];
   float power = mControl.power;
   float distance = mControl.distance;
   float mode5Time = mControl.runningTime;
@@ -512,7 +531,9 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
       nh.loginfo(directionStr.c_str());
       nh.loginfo(powerChar);
       nh.loginfo("...\n");
-      
+
+      //Testing -----------------------------------------------------------
+      movementTimer = 0;
       mControlMode1 = true;
       mControlDirection = mControl.mDirection;
       mControlPower = mControl.power;
@@ -610,7 +631,7 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
       mControlPower = mControl.power;
       mControlRunningTime = mControl.runningTime;
       mControlDistance = 0;
-      mControlStatus.state = 1;
+      mControlStatus.state = 5;
       mControlStatus.mDirection = mControl.mDirection;
       mControlStatus.power = mControlPower;
       mControlStatus.distance = 0;
@@ -838,7 +859,11 @@ void rotationControl(){
     //Turn on left rotation motor with fixed power
     T5.writeMicroseconds(1500 + fixedPower);
     T7.writeMicroseconds(1500 - fixedPower);
+    assignedYaw = yaw;
     //Testing----------------------------
+    rotationTimer += 0.1;
+    if(rotationTimer > rotationTime)
+      keepTurningLeft = false;
     yaw += 0.5;
     if(yaw > rotationUpperBound) 
       yaw -= 360;
@@ -847,7 +872,11 @@ void rotationControl(){
     //Turn on right rotation motor with fixed power
     T5.writeMicroseconds(1500 - fixedPower);
     T7.writeMicroseconds(1500 + fixedPower);
+    assignedYaw = yaw;
     //Testing----------------------------
+    rotationTimer += 0.1;
+    if(rotationTimer > rotationTime)
+      keepTurningRight = false;
     yaw -= 0.5;
     if(yaw < rotationLowerBound) 
       yaw +=360;
@@ -895,21 +924,32 @@ void movementControl(){
       //Turn on forward motors with specific power => stored in variable mControlPower
       //Testing-------------------
       positionY += 0.5;
+      nh.loginfo("moving forward...");
     }
     else if(keepMovingRight){
       //Turn on right motors with specific power => stored in variable mControlPower
       //Testing-------------------
       positionX += 0.5;
+      nh.loginfo("moving right...");
     }
     else if(keepMovingBackward){
       //Turn on back motors with specific power => stored in variable mControlPower
       //Testing-------------------
       positionY -= 0.5;
+      nh.loginfo("moving backward...");
     }
     else if(keepMovingLeft){
       //Turn on left motors with specific power => stored in variable mControlPower
       //Testing-------------------
       positionX -= 0.5;
+      nh.loginfo("moving left...");
+    }
+
+    //Testing----------------------
+    movementTimer += 0.1;
+    if(movementTimer >= movementTime){
+      mControlMode1 = false;
+      nh.loginfo("Mode 1 finished.\n");
     }
   }
   else if(mControlMode2){
@@ -1038,33 +1078,38 @@ void movementControl(){
       //Turn on forward motors with specific power => stored in variable mControlPower
       //Testing-------------------
       positionY += 0.5;
+      nh.loginfo("moving forward...");
     }
     //right
     else if(mControlDirection == 2){
       //Turn on right motors with specific power => stored in variable mControlPower
       //Testing-------------------
       positionX += 0.5;
+      nh.loginfo("moving right...");
     }
     //backward
     else if(mControlDirection == 3){
       //Turn on back motors with specific power => stored in variable mControlPower
       //Testing-------------------
       positionY -= 0.5;
+      nh.loginfo("moving backward...");
     }
     //left
     else if(mControlDirection == 4){
       //Turn on left motors with specific power => stored in variable mControlPower
       //Testing-------------------
       positionX -= 0.5;
+      nh.loginfo("moving left...");
     }
     mControlMode5Timer += 0.1;
-    if(mControlMode5Timer > mControlRunningTime){
+    if(mControlMode5Timer >= mControlRunningTime){
       mControlMode5 = false;
-      nh.loginfo("Motors are now off.\n");
+      nh.loginfo("Mode 5 finished.\n");
     }
   }
   else{
     centerTimer = 0;
+    movementTimer = 0;
     mControlMode5Timer = 0;
     mControlDirection = 0;
     mControlRunningTime = 0;
@@ -1113,7 +1158,7 @@ void rotateLeftDynamically(){
   T5.writeMicroseconds(1500 + PWM_Motors_orient);
   T7.writeMicroseconds(1500 - PWM_Motors_orient);
   //Testing----------------------------
-  yaw += 0.5;
+  yaw += 1;
   if(yaw > rotationUpperBound) yaw -= 360;
   
 }
@@ -1123,7 +1168,7 @@ void rotateRightDynamically(){
   T5.writeMicroseconds(1500 - PWM_Motors_orient);
   T7.writeMicroseconds(1500 + PWM_Motors_orient);
   //Testing----------------------------
-  yaw -= 0.5;
+  yaw -= 1;
   if(yaw < rotationLowerBound) yaw +=360;
   
 }

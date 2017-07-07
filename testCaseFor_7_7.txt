@@ -66,18 +66,20 @@
       = make sure the sub rotate correctly
     5. rotate x degrees to the left, where x is greater than 180
       = make sure the sub rotates correctly, the sub should rotate in opposite
-      direction and
+        direction and
     6. keep rotating right for x seconds, where x needs to be long enough for
        the sub to at least finish one cycle
       = make sure the sub rotates correctly
+      = estimate the time for the sub to rotate one full cycle
+      = adjust the fixedPower
     7. keep rotating left for x seconds, where x needs to be long enough for
        the sub to at least finish one cycle
       = make sure the sub rotates correctly
-    8. rotate right 180 degrees and then rotate right 180 degrees to finish
+    8. rotate right 179.99 degrees and then rotate right 179.99 degrees to finish
        a cycle
       = make sure the sub rotates correctly
       = estimate the time for the sub to move from a task to another task
-    9. rotate left 180 degrees and then rotate left 180 degrees to finish a
+    9. rotate left 179.99 degrees and then rotate left 179.99 degrees to finish a
        cycle
       = make sure the sub rotates correctly
 
