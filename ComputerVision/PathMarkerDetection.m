@@ -3,9 +3,9 @@ clc;
 %% Given Constants
 
 thresh = 20;
-color_choice = 4;   % integer from 1-4; colors listed below
-camdevice = 'image';   % 'webcam' 'image' 'usb'
-videofeed = 1; % shows results
+color_choice = 8;   % integer from 1-4; colors listed below
+camdevice = 'webcam';   % 'webcam' 'image' 'usb'
+videofeed = 0; % shows results
 
 %% Colors
 
@@ -16,7 +16,7 @@ colors_list = {'green',[0,100,0]; % 1
     'yellow',[204,149,46];
     'blue',[23,58,122];
     'card',[62,143,200];
-    'block',[97,108,159]};
+    'block',[160,116,58]};
 
 
 %% Initialize OpenCV
@@ -135,7 +135,7 @@ while 1
         c = minDist(2);
         edge = (approx{c}+approx{c+1})/2;
         edge = edge - center;
-        theta = -atan2d(edge(1),edge(2));
+        theta = -atand(edge(1)/edge(2));
         
         [~,radius] =  cv.minEnclosingCircle(cnt{1});
         %         delta_h = (origin(2)-center(2))./10;
