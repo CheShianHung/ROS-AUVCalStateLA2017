@@ -148,7 +148,7 @@ int main(int argc, char **argv){
   ros::Publisher rControlPublisher = node.advertise<auv_cal_state_la_2017::RControl>("rotation_control", 100);
   ros::Publisher mControlPublisher = node.advertise<auv_cal_state_la_2017::MControl>("movement_control", 100);
   ros::Publisher cvInfoPublisher = node.advertise<auv_cal_state_la_2017::CVInfo>("cv_info", 100);
-  ros::Rate loop_rate(100);
+  ros::Rate loop_rate(10);
 
   //currentTargetDepth = 0;
   //currentTargetRotation = 0;
@@ -171,21 +171,19 @@ int main(int argc, char **argv){
   motorPower = 0;
   motorRunningTime = 0;
 
-  resetBoolVariables();
-
-  task0_submergeToWater = true;
-  task_turnOnMotors = true;
+  task0_submergeToWater = false;
+  task_turnOnMotors = false;
   task_submergeXFt = false;
-  task_emergeXft = true; //
+  task_emergeXft = true;
   task_emergeToTop = true;
-  task_rotateRightXD1 = true;//
-  task_rotateRightXD2 = true;//
+  task_rotateRightXD1 = true;
+  task_rotateRightXD2 = true;
   task_rotateLeftXD1 = true;
   task_rotateLeftXD2 = true;
-  task_keepRotatingRight = true; //
-  task_keepRotatingLeft = true; //
+  task_keepRotatingRight = true;
+  task_keepRotatingLeft = true;
   task_mode1Movement = true;
-  task_mode5Movement1 = true; //
+  task_mode5Movement1 = true;
   task_mode5Movement2 = true;
 
   task_square_submergeXFt = true;
@@ -243,6 +241,9 @@ int main(int argc, char **argv){
     loop_rate.sleep();
   }
 
+  resetBoolVariables();
+
+  ROS_INFO("Turning on motors...");
   //Task =======================================================================
   while(ros::ok() && !task_turnOnMotors){
     if(!receivedFromHControl){

@@ -188,7 +188,7 @@ void setup() {
   rotationTime = 10;
   movementTimer = 0;
   movementTime = 10;
-  subIsReady = true;
+  subIsReady = false;
   isGoingUp = false;
   isGoingDown = false;
   isTurningRight = false;
@@ -278,7 +278,7 @@ void loop() {
   //Testing----------------------
   //feetDepth_read =  sensor.depth() * 3.28 + 0.8;                                   //1 meter = 3.28 feet  
   dutyCycl_depth = (abs(assignedDepth - feetDepth_read)/ 13.0);              //function to get a percentage of assigned height to the feet read
-  PWM_Motors_Depth = dutyCycl_depth * 400;                                   //PWM for motors are between 1500 - 1900; difference is 400 
+  PWM_Motors_Depth = dutyCycl_depth * 200;                                   //PWM for motors are between 1500 - 1900; difference is 400 
 
   //Rotation
   //duty cycle and PWM calculation for orientation
@@ -286,7 +286,6 @@ void loop() {
   PWM_Motors_orient = dutyCycl_orient * 200; //Maximum is 200
 
   if(subIsReady){
-    //Apply on Motors
     heightControl();
     //rotationControl();
     //movementControl();
@@ -305,7 +304,7 @@ void loop() {
   
   nh.spinOnce();    
 
-  delay(10);
+  delay(100);
 }
 
 
@@ -315,60 +314,54 @@ void hControlCallback(const auv_cal_state_la_2017::HControl& hControl) {
   float depth = hControl.depth;  
   dtostrf(depth, 4, 2, depthChar);
 
-  if(!subIsReady){
-    if(hControl.state == 4 && hControl.depth == 9){
-      subIsReady = true;
-      nh.loginfo("The motors have been unlocked.\n");
-      hControlStatus.state = 4;
-      hControlStatus.depth = 9;
-    }
-    else{
-      nh.loginfo("The sub has not ready yet. Resend the right message to unlock the motors.\n");
-      hControlStatus.state = hControl.state;
-      hControlStatus.depth = hControl.depth;
-    }
+  if(hControl.state == 0){  
+    if(!isGoingUp && !isGoingDown){
+      if(depth == -1 || depth + assignedDepth >= bottomDepth)
+        assignedDepth = bottomDepth;
+      else
+        assignedDepth = assignedDepth + depth;
+      isGoingDown = true;
+      nh.loginfo("Going down...");
+      nh.loginfo(depthChar);
+      nh.loginfo("ft...(-1 means infinite)\n");
+      hControlStatus.state = 0;
+      hControlStatus.depth = depth;
+    }else
+      nh.loginfo("Sub is still running. Command abort.");
   }
-  else{
-    if(hControl.state == 0){  
-      if(!isGoingUp && !isGoingDown){
-        if(depth == -1 || depth + assignedDepth >= bottomDepth)
-          assignedDepth = bottomDepth;
-        else
-          assignedDepth = assignedDepth + depth;
-        isGoingDown = true;
-        nh.loginfo("Going down...");
-        nh.loginfo(depthChar);
-        nh.loginfo("ft...(-1 means infinite)\n");
-        hControlStatus.state = 0;
-        hControlStatus.depth = depth;
-      }else
-        nh.loginfo("Sub is still running. Command abort.");
+  else if(hControl.state == 1){  
+    if(isGoingUp || isGoingDown){
+      isGoingUp = false;
+      isGoingDown = false;
+      nh.loginfo("Height control is now cancelled\n");
     }
-    else if(hControl.state == 1){  
-      if(isGoingUp || isGoingDown){
-        isGoingUp = false;
-        isGoingDown = false;
-        nh.loginfo("Height control is now cancelled\n");
-      }
-      assignedDepth = feetDepth_read;
-      hControlStatus.state = 1;
-      hControlStatus.depth = 0;
+    assignedDepth = feetDepth_read;
+    hControlStatus.state = 1;
+    hControlStatus.depth = 0;
+  }
+  else if(hControl.state == 2){
+    if(!isGoingUp && !isGoingDown){
+      if(depth == -1 || depth >= assignedDepth - topDepth)
+        assignedDepth = topDepth;
+      else 
+        assignedDepth = assignedDepth - depth;
+      isGoingUp = true;
+      nh.loginfo("Going up...");
+      nh.loginfo(depthChar);
+      nh.loginfo("ft...(-1 means infinite)\n");
+      hControlStatus.state = 2;
+      hControlStatus.depth = depth;
+    }else
+      nh.loginfo("Sub is still running.Command abort.");
+  }
+  else if(hControl.state == 4){
+    if(!subIsReady){
+      subIsReady = true;
+      nh.loginfo("Motors unlocked.");
     }
-    else if(hControl.state == 2){
-      if(!isGoingUp && !isGoingDown){
-        if(depth == -1 || depth >= assignedDepth - topDepth)
-          assignedDepth = topDepth;
-        else 
-          assignedDepth = assignedDepth - depth;
-        isGoingUp = true;
-        nh.loginfo("Going up...");
-        nh.loginfo(depthChar);
-        nh.loginfo("ft...(-1 means infinite)\n");
-        hControlStatus.state = 2;
-        hControlStatus.depth = depth;
-      }else
-        nh.loginfo("Sub is still running.Command abort.");
-    }
+    assignedDepth = 1;
+    hControlStatus.state = 4;
+    hControlStatus.depth = 9;
   }
   hControlPublisher.publish(&hControlStatus);
   
@@ -673,7 +666,7 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
 void goingUpward(){
 
   int basePower = 0;
-  int levelPower = (400 - PWM_Motors_Depth) / 45;
+  int levelPower = (200 - PWM_Motors_Depth) / 45;
   int reversedLevelPower = (PWM_Motors_Depth / 45) * (-1);
 
   for(i = 0; (2 * i) < 90; i++){
@@ -722,7 +715,7 @@ void goingDownward(){
   
   PWM_Motors_Depth = -PWM_Motors_Depth;
   int basePower = 0;
-  int levelPower = ((400 + PWM_Motors_Depth) / 45) * (-1);
+  int levelPower = ((200 + PWM_Motors_Depth) / 45) * (-1);
   int reversedLevelPower = ((-1) * PWM_Motors_Depth) / 45;
 
   for (i = 0; (2 * i) < 90; i++){ //loop will start from 0 degrees -> 90 degrees 
@@ -774,7 +767,7 @@ void heightControl(){
     goingDownward();
     
     //Testing--------------------------
-    feetDepth_read += 0.005;
+    feetDepth_read += 0.05;
     
   }  
   //Going up
@@ -782,7 +775,7 @@ void heightControl(){
     goingUpward(); 
     
     //Testing---------------------------
-    feetDepth_read -= 0.005;
+    feetDepth_read -= 0.05;
       
   } 
   //Reach the height
