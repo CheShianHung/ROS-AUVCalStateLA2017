@@ -23,6 +23,7 @@ cviSub = rossubscriber('/cv_info');
 %% Initializa variables
 frontCam = false;
 bottomCam = false;
+global testTimer;
 testTimer = 0;
 
 %% Rate of loop (10Hz)

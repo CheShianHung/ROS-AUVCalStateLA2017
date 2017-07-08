@@ -148,7 +148,7 @@ int main(int argc, char **argv){
   ros::Publisher rControlPublisher = node.advertise<auv_cal_state_la_2017::RControl>("rotation_control", 100);
   ros::Publisher mControlPublisher = node.advertise<auv_cal_state_la_2017::MControl>("movement_control", 100);
   ros::Publisher cvInfoPublisher = node.advertise<auv_cal_state_la_2017::CVInfo>("cv_info", 100);
-  ros::Rate loop_rate(10);
+  ros::Rate loop_rate(100);
 
   //currentTargetDepth = 0;
   //currentTargetRotation = 0;
@@ -163,7 +163,7 @@ int main(int argc, char **argv){
   checkingTargetInfo = false;
   motorNodeIsReady = false;
   cvNodeIsReady = true;
-  allNodesAreReady = false;
+  allNodesAreReady = true;
 
   directionToMove = 0;
   angleToTurn = 0;
@@ -174,32 +174,32 @@ int main(int argc, char **argv){
   resetBoolVariables();
 
   task0_submergeToWater = true;
-  task_turnOnMotors = false;
-  task_submergeXFt = true;
-  task_emergeXft = true;
+  task_turnOnMotors = true;
+  task_submergeXFt = false;
+  task_emergeXft = true; //
   task_emergeToTop = true;
-  task_rotateRightXD1 = true;
-  task_rotateRightXD2 = true;
+  task_rotateRightXD1 = true;//
+  task_rotateRightXD2 = true;//
   task_rotateLeftXD1 = true;
   task_rotateLeftXD2 = true;
-  task_keepRotatingRight = true;
-  task_keepRotatingLeft = true;
+  task_keepRotatingRight = true; //
+  task_keepRotatingLeft = true; //
   task_mode1Movement = true;
-  task_mode5Movement1 = true;
+  task_mode5Movement1 = true; //
   task_mode5Movement2 = true;
 
-  task_square_submergeXFt = false;
-  task_square_mode5Movement1 = false;
-  task_square_mode5Movement2 = false;
-  task_square_rotateRightXD = false;
-  task_square_emergeToTop = false;
+  task_square_submergeXFt = true;
+  task_square_mode5Movement1 = true;
+  task_square_mode5Movement2 = true;
+  task_square_rotateRightXD = true;
+  task_square_emergeToTop = true;
 
   task_cv_getTargetInfo_1 = true;
   task_cv_beforeCenter_1 = true;
   task_cv_centering_1 = true;
 
 
-  ROS_INFO("Master starts running. Checking each topic...");
+  // ROS_INFO("Master starts running. Checking each topic...");
 
   //Checking nodes...
   while(ros::ok() && !allNodesAreReady){
@@ -477,7 +477,7 @@ int main(int argc, char **argv){
   }
 
   resetBoolVariables();
-
+  if(!task_square_mode5Movement1){
   for(int i = 0; i < 4; i++){
 
     //Task =======================================================================
@@ -544,6 +544,7 @@ int main(int argc, char **argv){
       task_square_rotateRightXD = false;
     }
   }
+}
 
   //Task =======================================================================
   while (ros::ok() && !task_square_emergeToTop){

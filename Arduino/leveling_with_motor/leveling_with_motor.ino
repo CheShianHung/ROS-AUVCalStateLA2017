@@ -50,8 +50,6 @@ float feetDepth_read;
 //initializations for IMU
 float pitch, yaw, roll, heading;
 float deltat = 0.0f;        // integration interval for both filter schemes
-uint32_t count = 0;         // used to control display output rate
-uint32_t delt_t = 0;        // used to control display output rate
 uint32_t lastUpdate = 0;    // used to calculate integration interval
 uint32_t Now = 0;           // used to calculate integration interval
 
@@ -190,7 +188,7 @@ void setup() {
   rotationTime = 10;
   movementTimer = 0;
   movementTime = 10;
-  subIsReady = false;
+  subIsReady = true;
   isGoingUp = false;
   isGoingDown = false;
   isTurningRight = false;
@@ -209,7 +207,7 @@ void setup() {
   
   //Testing------------------
   feetDepth_read = 0;
-  yaw = 0;
+  //yaw = 0;
   positionX = 0;
   positionY = 0;
 
@@ -258,7 +256,7 @@ void setup() {
 void loop() {
   
   gettingRawData();
-
+  sensor.read();
   //Timer
   Now = micros();
   deltat = ((Now - lastUpdate)/1000000.0f); // set integration time by time elapsed since last filter update
@@ -267,37 +265,20 @@ void loop() {
   // This is ok by aircraft orientation standards!  
   // Pass gyro rate as rad/s
   MahonyQuaternionUpdate(ax, ay, az, gx*PI/180.0f, gy*PI/180.0f, gz*PI/180.0f, mx, my, mz);
-
-  // Serial print and/or display at 0.5 s rate independent of data rates
-  delt_t = millis() - count;
-  if (delt_t > 10) {
-
-    // Define output variables from updated quaternion---these are Tait-Bryan angles, commonly used in aircraft orientation.
-    // In this coordinate system, the positive z-axis is down toward Earth. 
-    // Yaw is the angle between Sensor x-axis and Earth magnetic North (or true North if corrected for local declination), 
-    // looking down on the sensor positive yaw is counterclockwise.
-    // Pitch is angle between sensor x-axis and Earth ground plane, toward the Earth is positive, up toward the sky is negative.
-    // Roll is angle between sensor y-axis and Earth ground plane, y-axis up is positive roll.
-    // These arise from the definition of the homogeneous rotation matrix constructed from quaternions.
-    // Tait-Bryan angles as well as Euler angles are non-commutative; that is, to get the correct orientation the rotations must be
-    // applied in the correct order which for this configuration is yaw, pitch, and then roll.
-    // For more see http://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles which has additional links.
-    
-    //yaw   = atan2(2.0f * (q[1] * q[2] + q[0] * q[3]), q[0] * q[0] + q[1] * q[1] - q[2] * q[2] - q[3] * q[3]);   
-    pitch = -asin(2.0f * (q[1] * q[3] - q[0] * q[2]));
-    roll  = atan2(2.0f * (q[0] * q[1] + q[2] * q[3]), q[0] * q[0] - q[1] * q[1] - q[2] * q[2] + q[3] * q[3]);
-    pitch *= 180.0f / PI;
-    //yaw   *= 180.0f / PI; 
-    //yaw   -= 13.8; // Declination at Danville, California is 13 degrees 48 minutes and 47 seconds on 2014-04-04
-    roll  *= 180.0f / PI;
-
-  }
+  
+  yaw   = atan2(2.0f * (q[1] * q[2] + q[0] * q[3]), q[0] * q[0] + q[1] * q[1] - q[2] * q[2] - q[3] * q[3]);   
+  pitch = -asin(2.0f * (q[1] * q[3] - q[0] * q[2]));
+  roll  = atan2(2.0f * (q[0] * q[1] + q[2] * q[3]), q[0] * q[0] - q[1] * q[1] - q[2] * q[2] + q[3] * q[3]);
+  pitch *= 180.0f / PI;
+  yaw   *= 180.0f / PI; 
+  yaw   -= 13.8; // Declination at Danville, California is 13 degrees 48 minutes and 47 seconds on 2014-04-04
+  roll  *= 180.0f / PI;
 
   //Depth
   //Testing----------------------
-  //feetDepth_read =  sensor.depth() * 3.28;                                   //1 meter = 3.28 feet  
-  dutyCycl_depth = (abs(assignedDepth - feetDepth_read)/ 12.0);              //function to get a percentage of assigned height to the feet read
-  PWM_Motors_Depth = dutyCycl_depth * 200;                                   //PWM for motors are between 1500 - 1900; difference is 400 
+  //feetDepth_read =  sensor.depth() * 3.28 + 0.8;                                   //1 meter = 3.28 feet  
+  dutyCycl_depth = (abs(assignedDepth - feetDepth_read)/ 13.0);              //function to get a percentage of assigned height to the feet read
+  PWM_Motors_Depth = dutyCycl_depth * 400;                                   //PWM for motors are between 1500 - 1900; difference is 400 
 
   //Rotation
   //duty cycle and PWM calculation for orientation
@@ -307,8 +288,8 @@ void loop() {
   if(subIsReady){
     //Apply on Motors
     heightControl();
-    rotationControl();
-    movementControl();
+    //rotationControl();
+    //movementControl();
   }
   else{
     hControlStatus.state = 4;
@@ -323,9 +304,8 @@ void loop() {
   currentRotationPublisher.publish(&currentRotation);
   
   nh.spinOnce();    
-  count = millis(); 
 
-  delay(100);
+  delay(10);
 }
 
 
@@ -693,7 +673,7 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
 void goingUpward(){
 
   int basePower = 0;
-  int levelPower = (200 - PWM_Motors_Depth) / 45;
+  int levelPower = (400 - PWM_Motors_Depth) / 45;
   int reversedLevelPower = (PWM_Motors_Depth / 45) * (-1);
 
   for(i = 0; (2 * i) < 90; i++){
@@ -701,7 +681,7 @@ void goingUpward(){
     if((roll > 2 * i) && (roll < (2 * i + 2))){
       //Boost the right motors
       T2.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * levelPower);
-      T3.writeMicroseconds(1500 + basePower - PWM_Motors_Depth - i * levelPower);
+      T3.writeMicroseconds(1500 + basePower + PWM_Motors_Depth - i * levelPower);
       //Downgrade the left motors
       T1.writeMicroseconds(1500 + basePower - PWM_Motors_Depth - i * reversedLevelPower);
       T4.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * reversedLevelPower);
@@ -713,12 +693,12 @@ void goingUpward(){
       T4.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * levelPower);
       //Downgrade the right motors
       T2.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * reversedLevelPower);
-      T3.writeMicroseconds(1500 + basePower - PWM_Motors_Depth - i * reversedLevelPower);
+      T3.writeMicroseconds(1500 + basePower + PWM_Motors_Depth - i * reversedLevelPower);
     }
     //backward
     if((pitch > 2 * i) && (pitch < (2 * i + 2))){ 
       //Boost the back motors
-      T3.writeMicroseconds(1500 + basePower - PWM_Motors_Depth - i * levelPower);
+      T3.writeMicroseconds(1500 + basePower + PWM_Motors_Depth - i * levelPower);
       T4.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * levelPower);
       //Downgrade the front motors
       T1.writeMicroseconds(1500 + basePower - PWM_Motors_Depth - i * reversedLevelPower);
@@ -730,7 +710,7 @@ void goingUpward(){
       T1.writeMicroseconds(1500 + basePower - PWM_Motors_Depth - i * levelPower);
       T2.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * levelPower);
       //Downgrade the back motors
-      T3.writeMicroseconds(1500 + basePower - PWM_Motors_Depth - i * reversedLevelPower);
+      T3.writeMicroseconds(1500 + basePower + PWM_Motors_Depth - i * reversedLevelPower);
       T4.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * reversedLevelPower);
     }
   }
@@ -742,7 +722,7 @@ void goingDownward(){
   
   PWM_Motors_Depth = -PWM_Motors_Depth;
   int basePower = 0;
-  int levelPower = ((200 + PWM_Motors_Depth) / 45) * (-1);
+  int levelPower = ((400 + PWM_Motors_Depth) / 45) * (-1);
   int reversedLevelPower = ((-1) * PWM_Motors_Depth) / 45;
 
   for (i = 0; (2 * i) < 90; i++){ //loop will start from 0 degrees -> 90 degrees 
@@ -753,13 +733,13 @@ void goingDownward(){
       T4.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * levelPower);
       //Downgrade the right motors
       T2.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * reversedLevelPower);
-      T3.writeMicroseconds(1500 + basePower - PWM_Motors_Depth - i * reversedLevelPower);       
+      T3.writeMicroseconds(1500 + basePower + PWM_Motors_Depth - i * reversedLevelPower);       
     }
     //left
     if((roll < -1 *(2*i)) && (roll > -1 *(2*i + 2))){
       //Boost the right motors
       T2.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * levelPower);
-      T3.writeMicroseconds(1500 + basePower - PWM_Motors_Depth - i * levelPower);
+      T3.writeMicroseconds(1500 + basePower + PWM_Motors_Depth - i * levelPower);
       //Downgrade the left motors
       T1.writeMicroseconds(1500 + basePower - PWM_Motors_Depth - i * reversedLevelPower);
       T4.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * reversedLevelPower);     
@@ -770,13 +750,13 @@ void goingDownward(){
       T1.writeMicroseconds(1500 + basePower - PWM_Motors_Depth - i * levelPower);
       T2.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * levelPower); 
       //Downgrade the back motors
-      T3.writeMicroseconds(1500 + basePower - PWM_Motors_Depth - i * reversedLevelPower);
+      T3.writeMicroseconds(1500 + basePower + PWM_Motors_Depth - i * reversedLevelPower);
       T4.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * reversedLevelPower);       
     }
     //forward
     if((pitch < -1*( 2*i)) && (pitch > -1 *(2*i + 2))){
       //Boost the back motors
-      T3.writeMicroseconds(1500 + basePower - PWM_Motors_Depth - i * levelPower);
+      T3.writeMicroseconds(1500 + basePower + PWM_Motors_Depth - i * levelPower);
       T4.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * levelPower);
       //Downgrade the front motors
       T1.writeMicroseconds(1500 + basePower - PWM_Motors_Depth - i * reversedLevelPower);
@@ -794,7 +774,7 @@ void heightControl(){
     goingDownward();
     
     //Testing--------------------------
-    feetDepth_read += 0.05;
+    feetDepth_read += 0.005;
     
   }  
   //Going up
@@ -802,7 +782,7 @@ void heightControl(){
     goingUpward(); 
     
     //Testing---------------------------
-    feetDepth_read -= 0.05;
+    feetDepth_read -= 0.005;
       
   } 
   //Reach the height
@@ -853,7 +833,7 @@ void rotationControl(){
 
   float delta = degreeToTurn();
   float rotationError = 3;
-  int fixedPower = 150;
+  int fixedPower = 60;
   
   if(keepTurningLeft){
     //Turn on left rotation motor with fixed power
@@ -861,12 +841,12 @@ void rotationControl(){
     T7.writeMicroseconds(1500 - fixedPower);
     assignedYaw = yaw;
     //Testing----------------------------
-    rotationTimer += 0.1;
+    rotationTimer += 0.01;
     if(rotationTimer > rotationTime)
       keepTurningLeft = false;
-    yaw += 0.5;
-    if(yaw > rotationUpperBound) 
-      yaw -= 360;
+    //yaw += 0.05;
+    //if(yaw > rotationUpperBound) 
+      //yaw -= 360;
   }
   else if(keepTurningRight){
     //Turn on right rotation motor with fixed power
@@ -874,12 +854,12 @@ void rotationControl(){
     T7.writeMicroseconds(1500 + fixedPower);
     assignedYaw = yaw;
     //Testing----------------------------
-    rotationTimer += 0.1;
+    rotationTimer += 0.01;
     if(rotationTimer > rotationTime)
       keepTurningRight = false;
-    yaw -= 0.5;
-    if(yaw < rotationLowerBound) 
-      yaw +=360;
+    //yaw -= 0.05;
+    //if(yaw < rotationLowerBound) 
+      //yaw +=360;
   }
   // AutoRotation to the assignedYaw with 1 degree error tolerance
   else if(delta > 1){ 
@@ -921,32 +901,36 @@ void movementControl(){
 
   if(mControlMode1){
     if(keepMovingForward){
-      //Turn on forward motors with specific power => stored in variable mControlPower
+      T8.writeMicroseconds(1500 - mControlPower);
+      T6.writeMicroseconds(1500 - mControlPower);
       //Testing-------------------
-      positionY += 0.5;
+      positionY += 0.05;
       nh.loginfo("moving forward...");
     }
     else if(keepMovingRight){
-      //Turn on right motors with specific power => stored in variable mControlPower
+      T5.writeMicroseconds(1500 - mControlPower);
+      T7.writeMicroseconds(1500 - mControlPower);
       //Testing-------------------
-      positionX += 0.5;
+      positionX += 0.05;
       nh.loginfo("moving right...");
     }
     else if(keepMovingBackward){
-      //Turn on back motors with specific power => stored in variable mControlPower
+      T8.writeMicroseconds(1500 + mControlPower);
+      T6.writeMicroseconds(1500 + mControlPower);
       //Testing-------------------
-      positionY -= 0.5;
+      positionY -= 0.05;
       nh.loginfo("moving backward...");
     }
     else if(keepMovingLeft){
-      //Turn on left motors with specific power => stored in variable mControlPower
+      T5.writeMicroseconds(1500 + mControlPower);
+      T7.writeMicroseconds(1500 + mControlPower);
       //Testing-------------------
-      positionX -= 0.5;
+      positionX -= 0.05;
       nh.loginfo("moving left...");
     }
 
     //Testing----------------------
-    movementTimer += 0.1;
+    movementTimer += 0.01;
     if(movementTimer >= movementTime){
       mControlMode1 = false;
       nh.loginfo("Mode 1 finished.\n");
@@ -960,13 +944,13 @@ void movementControl(){
       //Greater the distanceToReach, greater the power
 
       //Testing-----------------------------
-      //positionY += 0.1;
+      //positionY += 0.01;
     }else if(distanceToReach < 0){
       //Turn on the back motors with a proportional speed to the distanceToReach
       //Smaller the distanceToReach, greater the power
 
       //Testing-----------------------------
-      //positionY -= 0.1;
+      //positionY -= 0.01;
     }
     //Timer
     if(distanceToReach > error){
@@ -976,7 +960,7 @@ void movementControl(){
       centerTimer = 0;
     }
     else{
-      centerTimer += 0.1;
+      centerTimer += 0.01;
       if(centerTimer > 5){
         mControlMode2 = false;
         nh.loginfo("Target distance reached.\n");
@@ -1008,7 +992,7 @@ void movementControl(){
       centerTimer = 0;
     }
     else{
-      centerTimer += 0.1;
+      centerTimer += 0.01;
       if(centerTimer > 5){
         mControlMode3 = false;
         nh.loginfo("Target center reached.\n");
@@ -1075,33 +1059,37 @@ void movementControl(){
   else if(mControlMode5){
     //forward
     if(mControlDirection == 1){
-      //Turn on forward motors with specific power => stored in variable mControlPower
+      T8.writeMicroseconds(1500 - mControlPower);
+      T6.writeMicroseconds(1500 - mControlPower);
       //Testing-------------------
-      positionY += 0.5;
+      positionY += 0.05;
       nh.loginfo("moving forward...");
     }
     //right
     else if(mControlDirection == 2){
-      //Turn on right motors with specific power => stored in variable mControlPower
+      T5.writeMicroseconds(1500 - mControlPower);
+      T7.writeMicroseconds(1500 - mControlPower);
       //Testing-------------------
-      positionX += 0.5;
+      positionX += 0.05;
       nh.loginfo("moving right...");
     }
     //backward
     else if(mControlDirection == 3){
-      //Turn on back motors with specific power => stored in variable mControlPower
+      T8.writeMicroseconds(1500 + mControlPower);
+      T6.writeMicroseconds(1500 + mControlPower);
       //Testing-------------------
-      positionY -= 0.5;
+      positionY -= 0.05;
       nh.loginfo("moving backward...");
     }
     //left
     else if(mControlDirection == 4){
-      //Turn on left motors with specific power => stored in variable mControlPower
+      T5.writeMicroseconds(1500 + mControlPower);
+      T7.writeMicroseconds(1500 + mControlPower);
       //Testing-------------------
-      positionX -= 0.5;
+      positionX -= 0.05;
       nh.loginfo("moving left...");
     }
-    mControlMode5Timer += 0.1;
+    mControlMode5Timer += 0.01;
     if(mControlMode5Timer >= mControlRunningTime){
       mControlMode5 = false;
       nh.loginfo("Mode 5 finished.\n");
