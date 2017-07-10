@@ -64,7 +64,7 @@ while 1
     
     %% Run camera
     if frontCam
-        testTimer = FrontCamera(testTimer, tiMsg, cviMsg.TaskNumber, cviMsg.GivenColor, cviMsg.GivenShape, cviMsg.GivenLength, cviMsg.GivenDistance);
+        FrontCamera(tiMsg, cviMsg.TaskNumber, cviMsg.GivenColor, cviMsg.GivenShape, cviMsg.GivenLength, cviMsg.GivenDistance);
     end
     
     if bottomCam
@@ -81,10 +81,11 @@ while 1
 end
 
 %% Front Camera
-function timer = FrontCamera(testTimer, tiMsg, taskNum, givenC, givenS, givenL, givenD)
+function FrontCamera(tiMsg, taskNum, givenC, givenS, givenL, givenD)
     %fprintf('taskNum: %d ,givenC: %d ,givenS: %d ,givenL: %.2f ,givenD: %.2f', taskNum, givenC, givenS, givenL, givenD); 
-    timer = testTimer + 0.1;
-    if timer >= 5 
+    global testTimer;
+    testTimer = testTimer + 0.1;
+    if testTimer >= 5 
         tiMsg.State = 1;
         tiMsg.Angle = 45;
         tiMsg.Height = -4;
