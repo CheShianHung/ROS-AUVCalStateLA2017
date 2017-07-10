@@ -278,12 +278,12 @@ void loop() {
   //Testing----------------------
   //feetDepth_read =  sensor.depth() * 3.28 + 0.8;                                   //1 meter = 3.28 feet  
   dutyCycl_depth = (abs(assignedDepth - feetDepth_read)/ 13.0);              //function to get a percentage of assigned height to the feet read
-  PWM_Motors_Depth = dutyCycl_depth * 200;                                   //PWM for motors are between 1500 - 1900; difference is 400 
+  PWM_Motors_Depth = dutyCycl_depth * 400;                                   //PWM for motors are between 1500 - 1900; difference is 400 
 
   //Rotation
   //duty cycle and PWM calculation for orientation
   dutyCycl_orient = degreeToTurn() / 180.0;
-  PWM_Motors_orient = dutyCycl_orient * 200; //Maximum is 200
+  PWM_Motors_orient = dutyCycl_orient * 400; //Maximum is 200
 
   if(subIsReady){
     heightControl();
@@ -666,45 +666,45 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
 void goingUpward(){
 
   int basePower = 0;
-  int levelPower = (200 - PWM_Motors_Depth) / 45;
+  int levelPower = (400 - PWM_Motors_Depth) / 45;
   int reversedLevelPower = (PWM_Motors_Depth / 45) * (-1);
 
   for(i = 0; (2 * i) < 90; i++){
-    //right
+    //rolled left(positive value)
     if((roll > 2 * i) && (roll < (2 * i + 2))){
-      //Boost the right motors
-      T2.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * levelPower);
-      T3.writeMicroseconds(1500 + basePower + PWM_Motors_Depth - i * levelPower);
-      //Downgrade the left motors
-      T1.writeMicroseconds(1500 + basePower - PWM_Motors_Depth - i * reversedLevelPower);
-      T4.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * reversedLevelPower);
-    }
-    //left
-    if((roll < -1 *( 2 * i)) && (roll > -1 * (2 * i + 2))){
       //Boost the left motors
-      T1.writeMicroseconds(1500 + basePower - PWM_Motors_Depth - i * levelPower);
-      T4.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * levelPower);
+      T1.writeMicroseconds(1500 + PWM_Motors_Depth + i * levelPower);
+      T2.writeMicroseconds(1500 - PWM_Motors_Depth - i * levelPower);
       //Downgrade the right motors
-      T2.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * reversedLevelPower);
-      T3.writeMicroseconds(1500 + basePower + PWM_Motors_Depth - i * reversedLevelPower);
+      T3.writeMicroseconds(1500 - PWM_Motors_Depth - i * reversedLevelPower);
+      T4.writeMicroseconds(1500 - PWM_Motors_Depth - i * reversedLevelPower);
     }
-    //backward
+    //rolled right(negative value)
+    if((roll < -1 *( 2 * i)) && (roll > -1 * (2 * i + 2))){
+      //Boost the right motors
+      T3.writeMicroseconds(1500 - PWM_Motors_Depth - i * levelPower);
+      T4.writeMicroseconds(1500 - PWM_Motors_Depth - i * levelPower);
+      //Downgrade the left motors
+      T1.writeMicroseconds(1500 + PWM_Motors_Depth + i * reversedLevelPower);
+      T2.writeMicroseconds(1500 - PWM_Motors_Depth - i * reversedLevelPower);
+    }
+    //pitched backward(positive value)
     if((pitch > 2 * i) && (pitch < (2 * i + 2))){ 
       //Boost the back motors
-      T3.writeMicroseconds(1500 + basePower + PWM_Motors_Depth - i * levelPower);
-      T4.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * levelPower);
+      T1.writeMicroseconds(1500 + PWM_Motors_Depth + i * levelPower);
+      T4.writeMicroseconds(1500 - PWM_Motors_Depth - i * levelPower);
       //Downgrade the front motors
-      T1.writeMicroseconds(1500 + basePower - PWM_Motors_Depth - i * reversedLevelPower);
-      T2.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * reversedLevelPower);  
+      T2.writeMicroseconds(1500 - PWM_Motors_Depth - i * reversedLevelPower);
+      T3.writeMicroseconds(1500 - PWM_Motors_Depth - i * reversedLevelPower);  
     }
-    //forward
+    //pitched forward(negative value)
     if((pitch < -1 * (2 * i)) && (pitch > -1 * (2 * i + 2))){
       //Boost the front motors
-      T1.writeMicroseconds(1500 + basePower - PWM_Motors_Depth - i * levelPower);
-      T2.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * levelPower);
+      T2.writeMicroseconds(1500 - PWM_Motors_Depth - i * levelPower);
+      T3.writeMicroseconds(1500 - PWM_Motors_Depth - i * levelPower);
       //Downgrade the back motors
-      T3.writeMicroseconds(1500 + basePower + PWM_Motors_Depth - i * reversedLevelPower);
-      T4.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * reversedLevelPower);
+      T1.writeMicroseconds(1500 + PWM_Motors_Depth + i * reversedLevelPower);
+      T4.writeMicroseconds(1500 - PWM_Motors_Depth - i * reversedLevelPower);
     }
   }
     
@@ -715,45 +715,45 @@ void goingDownward(){
   
   PWM_Motors_Depth = -PWM_Motors_Depth;
   int basePower = 0;
-  int levelPower = ((200 + PWM_Motors_Depth) / 45) * (-1);
+  int levelPower = ((400 + PWM_Motors_Depth) / 45) * (-1);
   int reversedLevelPower = ((-1) * PWM_Motors_Depth) / 45;
 
   for (i = 0; (2 * i) < 90; i++){ //loop will start from 0 degrees -> 90 degrees 
-    //right
+    //rolled left (positive value)
     if((roll > 2*i) && (roll < (2*i + 2))){
       //Boost the left motors
-      T1.writeMicroseconds(1500 + basePower - PWM_Motors_Depth - i * levelPower);
-      T4.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * levelPower);
+      T1.writeMicroseconds(1500 + PWM_Motors_Depth + i * levelPower);
+      T2.writeMicroseconds(1500 - PWM_Motors_Depth - i * levelPower);
       //Downgrade the right motors
-      T2.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * reversedLevelPower);
-      T3.writeMicroseconds(1500 + basePower + PWM_Motors_Depth - i * reversedLevelPower);       
+      T3.writeMicroseconds(1500 - PWM_Motors_Depth - i * reversedLevelPower);
+      T4.writeMicroseconds(1500 - PWM_Motors_Depth - i * reversedLevelPower);       
     }
-    //left
+    //rolled right (negative values)
     if((roll < -1 *(2*i)) && (roll > -1 *(2*i + 2))){
       //Boost the right motors
-      T2.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * levelPower);
-      T3.writeMicroseconds(1500 + basePower + PWM_Motors_Depth - i * levelPower);
+      T3.writeMicroseconds(1500 - PWM_Motors_Depth - i * levelPower);
+      T4.writeMicroseconds(1500 - PWM_Motors_Depth - i * levelPower);
       //Downgrade the left motors
-      T1.writeMicroseconds(1500 + basePower - PWM_Motors_Depth - i * reversedLevelPower);
-      T4.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * reversedLevelPower);     
+      T1.writeMicroseconds(1500 + PWM_Motors_Depth + i * reversedLevelPower);
+      T2.writeMicroseconds(1500 - PWM_Motors_Depth - i * reversedLevelPower);     
     }
-    //backward
+    //pitched back (positive value)
     if((pitch > 2*i) && (pitch < (2*i + 2))){
-      //Boost the front motors
-      T1.writeMicroseconds(1500 + basePower - PWM_Motors_Depth - i * levelPower);
-      T2.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * levelPower); 
-      //Downgrade the back motors
-      T3.writeMicroseconds(1500 + basePower + PWM_Motors_Depth - i * reversedLevelPower);
-      T4.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * reversedLevelPower);       
-    }
-    //forward
-    if((pitch < -1*( 2*i)) && (pitch > -1 *(2*i + 2))){
       //Boost the back motors
-      T3.writeMicroseconds(1500 + basePower + PWM_Motors_Depth - i * levelPower);
-      T4.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * levelPower);
+      T1.writeMicroseconds(1500 + PWM_Motors_Depth + i * levelPower);
+      T4.writeMicroseconds(1500 - PWM_Motors_Depth - i * levelPower);
       //Downgrade the front motors
-      T1.writeMicroseconds(1500 + basePower - PWM_Motors_Depth - i * reversedLevelPower);
-      T2.writeMicroseconds(1500 - basePower + PWM_Motors_Depth + i * reversedLevelPower);      
+      T2.writeMicroseconds(1500 - PWM_Motors_Depth - i * reversedLevelPower);
+      T3.writeMicroseconds(1500 - PWM_Motors_Depth - i * reversedLevelPower);       
+    }
+    //pitched forward (negative value)
+    if((pitch < -1*( 2*i)) && (pitch > -1 *(2*i + 2))){
+      //Boost the front motors
+      T2.writeMicroseconds(1500 - PWM_Motors_Depth - i * levelPower);
+      T3.writeMicroseconds(1500 - PWM_Motors_Depth - i * levelPower);
+      //Downgrade the back motors
+      T1.writeMicroseconds(1500 + PWM_Motors_Depth + i * reversedLevelPower);
+      T4.writeMicroseconds(1500 - PWM_Motors_Depth - i * reversedLevelPower);    
     }
   }
     
@@ -894,29 +894,29 @@ void movementControl(){
 
   if(mControlMode1){
     if(keepMovingForward){
+      T6.writeMicroseconds(1500 + mControlPower);
       T8.writeMicroseconds(1500 - mControlPower);
-      T6.writeMicroseconds(1500 - mControlPower);
       //Testing-------------------
       positionY += 0.05;
       nh.loginfo("moving forward...");
     }
     else if(keepMovingRight){
       T5.writeMicroseconds(1500 - mControlPower);
-      T7.writeMicroseconds(1500 - mControlPower);
+      T7.writeMicroseconds(1500 + mControlPower);
       //Testing-------------------
       positionX += 0.05;
       nh.loginfo("moving right...");
     }
     else if(keepMovingBackward){
+      T6.writeMicroseconds(1500 - mControlPower);
       T8.writeMicroseconds(1500 + mControlPower);
-      T6.writeMicroseconds(1500 + mControlPower);
       //Testing-------------------
       positionY -= 0.05;
       nh.loginfo("moving backward...");
     }
     else if(keepMovingLeft){
       T5.writeMicroseconds(1500 + mControlPower);
-      T7.writeMicroseconds(1500 + mControlPower);
+      T7.writeMicroseconds(1500 - mControlPower);
       //Testing-------------------
       positionX -= 0.05;
       nh.loginfo("moving left...");
@@ -1052,8 +1052,8 @@ void movementControl(){
   else if(mControlMode5){
     //forward
     if(mControlDirection == 1){
+      T6.writeMicroseconds(1500 + mControlPower);
       T8.writeMicroseconds(1500 - mControlPower);
-      T6.writeMicroseconds(1500 - mControlPower);
       //Testing-------------------
       positionY += 0.05;
       nh.loginfo("moving forward...");
@@ -1061,15 +1061,15 @@ void movementControl(){
     //right
     else if(mControlDirection == 2){
       T5.writeMicroseconds(1500 - mControlPower);
-      T7.writeMicroseconds(1500 - mControlPower);
+      T7.writeMicroseconds(1500 + mControlPower);
       //Testing-------------------
       positionX += 0.05;
       nh.loginfo("moving right...");
     }
     //backward
     else if(mControlDirection == 3){
+      T6.writeMicroseconds(1500 - mControlPower);
       T8.writeMicroseconds(1500 + mControlPower);
-      T6.writeMicroseconds(1500 + mControlPower);
       //Testing-------------------
       positionY -= 0.05;
       nh.loginfo("moving backward...");
@@ -1077,7 +1077,7 @@ void movementControl(){
     //left
     else if(mControlDirection == 4){
       T5.writeMicroseconds(1500 + mControlPower);
-      T7.writeMicroseconds(1500 + mControlPower);
+      T7.writeMicroseconds(1500 - mControlPower);
       //Testing-------------------
       positionX -= 0.05;
       nh.loginfo("moving left...");
@@ -1139,8 +1139,8 @@ void rotateLeftDynamically(){
   T5.writeMicroseconds(1500 + PWM_Motors_orient);
   T7.writeMicroseconds(1500 - PWM_Motors_orient);
   //Testing----------------------------
-  yaw += 1;
-  if(yaw > rotationUpperBound) yaw -= 360;
+  //yaw += 1;
+  //if(yaw > rotationUpperBound) yaw -= 360;
   
 }
 
@@ -1149,8 +1149,8 @@ void rotateRightDynamically(){
   T5.writeMicroseconds(1500 - PWM_Motors_orient);
   T7.writeMicroseconds(1500 + PWM_Motors_orient);
   //Testing----------------------------
-  yaw -= 1;
-  if(yaw < rotationLowerBound) yaw +=360;
+  //yaw -= 1;
+  //if(yaw < rotationLowerBound) yaw +=360;
   
 }
 
