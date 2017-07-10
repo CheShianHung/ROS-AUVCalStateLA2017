@@ -7,7 +7,7 @@ clc;
 % rosshutdown;
 % !synclient HorizEdgeScroll=0 HorizTwoFingerScroll=0
 % roboticsAddons
-% folderpath = '/home/diego/catkin_ws/src';
+% folderpath = '/home/auv/catkin_ws/src';
 % rosgenmsg(folderpath);
 
 %% Initialize subscriber and publishers
@@ -16,6 +16,7 @@ bcdPub = rospublisher('/bottom_cam_distance','auv_cal_state_la_2017/BottomCamDis
 tiPub = rospublisher('/target_info','auv_cal_state_la_2017/TargetInfo');
 fcdMsg = rosmessage('auv_cal_state_la_2017/FrontCamDistance');
 bcdMsg = rosmessage('auv_cal_state_la_2017/BottomCamDistance');
+global tiMsg;
 tiMsg = rosmessage('auv_cal_state_la_2017/TargetInfo');
 
 cviSub = rossubscriber('/cv_info');
@@ -64,7 +65,7 @@ while 1
     
     %% Run camera
     if frontCam
-        FrontCamera(tiMsg, cviMsg.TaskNumber, cviMsg.GivenColor, cviMsg.GivenShape, cviMsg.GivenLength, cviMsg.GivenDistance);
+        FrontCamera(cviMsg.TaskNumber, cviMsg.GivenColor, cviMsg.GivenShape, cviMsg.GivenLength, cviMsg.GivenDistance);
     end
     
     if bottomCam
@@ -81,8 +82,9 @@ while 1
 end
 
 %% Front Camera
-function FrontCamera(tiMsg, taskNum, givenC, givenS, givenL, givenD)
+function FrontCamera( taskNum, givenC, givenS, givenL, givenD)
     %fprintf('taskNum: %d ,givenC: %d ,givenS: %d ,givenL: %.2f ,givenD: %.2f', taskNum, givenC, givenS, givenL, givenD); 
+    global tiMsg;
     global testTimer;
     testTimer = testTimer + 0.1;
     if testTimer >= 5 
@@ -93,7 +95,7 @@ function FrontCamera(tiMsg, taskNum, givenC, givenS, givenL, givenD)
         disp('Object found. Sending data to master...');
     else
         disp('Finding object...');
-        disp(timer);
+        disp(testTimer);
     end
     
     return
