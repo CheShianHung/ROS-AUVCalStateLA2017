@@ -207,7 +207,7 @@ void setup() {
   
   //Testing------------------
   feetDepth_read = 0;
-  //yaw = 0;
+  yaw = 0;
   positionX = 0;
   positionY = 0;
 
@@ -227,6 +227,7 @@ void setup() {
   // direction => 0: none, 1: forward, 2: right, 3: backward, 4: left
   // power => 0: none, x: x power add to the motors
   // distance => 0: none, x: x units away from the object
+  // runningTime => 0: none, x: x seconds for the motors to run
   mControlStatus.state = 0;
   mControlStatus.mDirection = 0;
   mControlStatus.power = 0;
@@ -266,12 +267,12 @@ void loop() {
   // Pass gyro rate as rad/s
   MahonyQuaternionUpdate(ax, ay, az, gx*PI/180.0f, gy*PI/180.0f, gz*PI/180.0f, mx, my, mz);
   
-  yaw   = atan2(2.0f * (q[1] * q[2] + q[0] * q[3]), q[0] * q[0] + q[1] * q[1] - q[2] * q[2] - q[3] * q[3]);   
+  //yaw   = atan2(2.0f * (q[1] * q[2] + q[0] * q[3]), q[0] * q[0] + q[1] * q[1] - q[2] * q[2] - q[3] * q[3]);   
   pitch = -asin(2.0f * (q[1] * q[3] - q[0] * q[2]));
   roll  = atan2(2.0f * (q[0] * q[1] + q[2] * q[3]), q[0] * q[0] - q[1] * q[1] - q[2] * q[2] + q[3] * q[3]);
   pitch *= 180.0f / PI;
-  yaw   *= 180.0f / PI; 
-  yaw   -= 13.8; // Declination at Danville, California is 13 degrees 48 minutes and 47 seconds on 2014-04-04
+  //yaw   *= 180.0f / PI; 
+  //yaw   -= 13.8; // Declination at Danville, California is 13 degrees 48 minutes and 47 seconds on 2014-04-04
   roll  *= 180.0f / PI;
 
   //Depth
@@ -287,13 +288,8 @@ void loop() {
 
   if(subIsReady){
     heightControl();
-    //rotationControl();
-    //movementControl();
-  }
-  else{
-    hControlStatus.state = 4;
-    hControlStatus.depth = 9;
-    hControlPublisher.publish(&hControlStatus);
+    rotationControl();
+    movementControl();
   }
 
   //Update and publish current data to master
@@ -304,7 +300,7 @@ void loop() {
   
   nh.spinOnce();    
 
-  delay(100);
+  delay(10);
 }
 
 
@@ -324,8 +320,6 @@ void hControlCallback(const auv_cal_state_la_2017::HControl& hControl) {
       nh.loginfo("Going down...");
       nh.loginfo(depthChar);
       nh.loginfo("ft...(-1 means infinite)\n");
-      hControlStatus.state = 0;
-      hControlStatus.depth = depth;
     }else
       nh.loginfo("Sub is still running. Command abort.");
   }
@@ -336,8 +330,6 @@ void hControlCallback(const auv_cal_state_la_2017::HControl& hControl) {
       nh.loginfo("Height control is now cancelled\n");
     }
     assignedDepth = feetDepth_read;
-    hControlStatus.state = 1;
-    hControlStatus.depth = 0;
   }
   else if(hControl.state == 2){
     if(!isGoingUp && !isGoingDown){
@@ -349,8 +341,6 @@ void hControlCallback(const auv_cal_state_la_2017::HControl& hControl) {
       nh.loginfo("Going up...");
       nh.loginfo(depthChar);
       nh.loginfo("ft...(-1 means infinite)\n");
-      hControlStatus.state = 2;
-      hControlStatus.depth = depth;
     }else
       nh.loginfo("Sub is still running.Command abort.");
   }
@@ -358,11 +348,11 @@ void hControlCallback(const auv_cal_state_la_2017::HControl& hControl) {
     if(!subIsReady){
       subIsReady = true;
       nh.loginfo("Motors unlocked.");
-    }
-    assignedDepth = 1;
-    hControlStatus.state = 4;
-    hControlStatus.depth = 9;
+      assignedDepth = 1;
+    }   
   }
+  hControlStatus.state = hControl.state;
+  hControlStatus.depth = hControl.depth;
   hControlPublisher.publish(&hControlStatus);
   
 }
@@ -391,8 +381,6 @@ void rControlCallback(const auv_cal_state_la_2017::RControl& rControl){
       nh.loginfo("Turning left...");
       nh.loginfo(rotationChar);
       nh.loginfo("degree...(-1 means infinite)\n");
-      rControlStatus.state = 0;
-      rControlStatus.rotation = rotation;
     }else 
       nh.loginfo("Sub is still rotating. Command abort.");
   }
@@ -405,8 +393,6 @@ void rControlCallback(const auv_cal_state_la_2017::RControl& rControl){
       nh.loginfo("Rotation control is now cancelled\n");
     }
     assignedYaw = yaw;    
-    rControlStatus.state = 1;
-    rControlStatus.rotation = 0;
   }
   else if(rControl.state == 2){
     if(!isTurningRight && !isTurningLeft){
@@ -425,11 +411,11 @@ void rControlCallback(const auv_cal_state_la_2017::RControl& rControl){
       nh.loginfo("Turning right...");
       nh.loginfo(rotationChar);
       nh.loginfo("degree...(-1 means infinite)");
-      rControlStatus.state = 2;
-      rControlStatus.rotation = rotation;
     }else 
       nh.loginfo("Sub is still rotating.Command abort.");
   }
+  rControlStatus.state = rControl.state;
+  rControlStatus.rotation = rControl.rotation;
   rControlPublisher.publish(&rControlStatus);
   
 }
@@ -469,11 +455,6 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
     mControlDirection = 0;
     mControlPower = 0;
     mControlDistance = 0;
-    mControlStatus.state = 0;
-    mControlStatus.mDirection = 0;
-    mControlStatus.power = 0;
-    mControlStatus.distance = 0;
-    mControlStatus.runningTime = 0;
   }
   else if(mControl.state == 1){
     if(mControlMode1 || mControlMode2|| mControlMode3 || mControlMode4 || mControlMode5)
@@ -511,11 +492,6 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
       mControlDirection = mControl.mDirection;
       mControlPower = mControl.power;
       mControlDistance = 0;
-      mControlStatus.state = 1;
-      mControlStatus.mDirection = mControlDirection;
-      mControlStatus.power = mControlPower;
-      mControlStatus.distance = 0;
-      mControlStatus.runningTime = 0;
     }   
   }
   else if(mControl.state == 2){
@@ -531,11 +507,6 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
       mControlMode2 = true;
       mControlPower = 0;
       mControlDistance = mControl.distance;
-      mControlStatus.state = 2;
-      mControlStatus.mDirection = 1;
-      mControlStatus.power = 0;
-      mControlStatus.distance = mControlDistance;
-      mControlStatus.runningTime = 0;
     }
   }
   else if(mControl.state == 3){
@@ -547,11 +518,6 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
       mControlMode3 = true;
       mControlPower = 0;
       mControlDistance = 0;
-      mControlStatus.state = 3;
-      mControlStatus.mDirection = 0;
-      mControlStatus.power = 0;
-      mControlStatus.distance = 0;
-      mControlStatus.runningTime = 0;
     }
   }
   else if(mControl.state == 4){
@@ -563,11 +529,6 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
       mControlMode4 = true;
       mControlPower = 0;
       mControlDistance = 0;
-      mControlStatus.state = 4;
-      mControlStatus.mDirection = 0;
-      mControlStatus.power = 0;
-      mControlStatus.distance = 0;
-      mControlStatus.runningTime = 0;
     }
   }
   else if(mControl.state == 5){
@@ -604,13 +565,13 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
       mControlPower = mControl.power;
       mControlRunningTime = mControl.runningTime;
       mControlDistance = 0;
-      mControlStatus.state = 5;
-      mControlStatus.mDirection = mControl.mDirection;
-      mControlStatus.power = mControlPower;
-      mControlStatus.distance = 0;
-      mControlStatus.runningTime = mControlRunningTime;
     }  
   }
+  mControlStatus.state = mControl.state;
+  mControlStatus.mDirection = mControl.mDirection;
+  mControlStatus.power = mControl.power;
+  mControlStatus.distance = mControl.distance;
+  mControlStatus.runningTime = mControl.runningTime;
   mControlPublisher.publish(&mControlStatus);
   
 }
@@ -837,9 +798,9 @@ void rotationControl(){
     rotationTimer += 0.01;
     if(rotationTimer > rotationTime)
       keepTurningLeft = false;
-    //yaw += 0.05;
-    //if(yaw > rotationUpperBound) 
-      //yaw -= 360;
+    yaw += 0.05;
+    if(yaw > rotationUpperBound) 
+      yaw -= 360;
   }
   else if(keepTurningRight){
     //Turn on right rotation motor with fixed power
@@ -850,9 +811,9 @@ void rotationControl(){
     rotationTimer += 0.01;
     if(rotationTimer > rotationTime)
       keepTurningRight = false;
-    //yaw -= 0.05;
-    //if(yaw < rotationLowerBound) 
-      //yaw +=360;
+    yaw -= 0.05;
+    if(yaw < rotationLowerBound) 
+      yaw +=360;
   }
   // AutoRotation to the assignedYaw with 1 degree error tolerance
   else if(delta > 1){ 
@@ -923,7 +884,10 @@ void movementControl(){
     }
 
     //Testing----------------------
-    movementTimer += 0.01;
+    movementTimer += 0.05;
+    char timerChar[11];
+    dtostrf(movementTimer, 4, 2, timerChar);
+    nh.loginfo(timerChar);
     if(movementTimer >= movementTime){
       mControlMode1 = false;
       nh.loginfo("Mode 1 finished.\n");
@@ -954,7 +918,7 @@ void movementControl(){
     }
     else{
       centerTimer += 0.01;
-      if(centerTimer > 5){
+      if(centerTimer >= 5){
         mControlMode2 = false;
         nh.loginfo("Target distance reached.\n");
       }
@@ -985,8 +949,8 @@ void movementControl(){
       centerTimer = 0;
     }
     else{
-      centerTimer += 0.01;
-      if(centerTimer > 5){
+      centerTimer += 0.05;
+      if(centerTimer >= 5){
         mControlMode3 = false;
         nh.loginfo("Target center reached.\n");
       }
@@ -1016,7 +980,7 @@ void movementControl(){
     }
     else{
       centerTimer += 0.05;
-      if(centerTimer > 5){
+      if(centerTimer >= 5){
         mControlMode4 = false;
         nh.loginfo("Target center reached.\n");
       }
@@ -1043,7 +1007,7 @@ void movementControl(){
     }
     else{
       centerTimer += 0.05;
-      if(centerTimer > 5){
+      if(centerTimer >= 5){
         mControlMode4 = false;
         nh.loginfo("Target center reached.\n");
       }
@@ -1082,7 +1046,10 @@ void movementControl(){
       positionX -= 0.05;
       nh.loginfo("moving left...");
     }
-    mControlMode5Timer += 0.01;
+    mControlMode5Timer += 0.05;
+    char timerChar[11];
+    dtostrf(mControlMode5Timer, 4, 2, timerChar);
+    nh.loginfo(timerChar);
     if(mControlMode5Timer >= mControlRunningTime){
       mControlMode5 = false;
       nh.loginfo("Mode 5 finished.\n");
@@ -1139,8 +1106,8 @@ void rotateLeftDynamically(){
   T5.writeMicroseconds(1500 + PWM_Motors_orient);
   T7.writeMicroseconds(1500 - PWM_Motors_orient);
   //Testing----------------------------
-  //yaw += 1;
-  //if(yaw > rotationUpperBound) yaw -= 360;
+  yaw += 1;
+  if(yaw > rotationUpperBound) yaw -= 360;
   
 }
 
@@ -1149,8 +1116,8 @@ void rotateRightDynamically(){
   T5.writeMicroseconds(1500 - PWM_Motors_orient);
   T7.writeMicroseconds(1500 + PWM_Motors_orient);
   //Testing----------------------------
-  //yaw -= 1;
-  //if(yaw < rotationLowerBound) yaw +=360;
+  yaw -= 1;
+  if(yaw < rotationLowerBound) yaw +=360;
   
 }
 
