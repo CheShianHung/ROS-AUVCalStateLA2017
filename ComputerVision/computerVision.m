@@ -28,7 +28,7 @@ global testTimer;
 testTimer = 0;
 
 %% Rate of loop (10Hz)
-rate = rosrate(10);
+rate = rosrate(100);
 
 while 1
     %% Default data
