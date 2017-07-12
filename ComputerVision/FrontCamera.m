@@ -9,6 +9,8 @@ function FrontCamera(cviMsg)
 %       cviMsg.GivenShape
 %       cviMsg.GivenLength
 %       cviMsg.GivenDistance
+%
+%   cviMsg is a struct that contains the resulting outputs
 
 
 %% Initialize outputs
@@ -17,6 +19,7 @@ theta = zeros(1,15);
 distance = zeros(1,15);
 global found;
 global camera;
+global fcdMsg;
 
 %% Given Constants
 
@@ -26,7 +29,7 @@ given_radius = cviMsg.GivenLength;
 given_distance = cviMsg.GivenDistance;
 % color_choice = 2;       % integer; colors listed below
 color_choice = cviMsg.GivenColor;
-camdevice = 'webcam';   % 'webcam' 'image' 'usb'
+camdevice = 'usb';   % 'webcam' 'image' 'usb'
 videofeed = false;      % shows results
 satthresh = 80;        % threshold sensitivity for saturation channel (0-255)
 huethresh = 15;        % threshold sensitivity for hue channel (0-255)
@@ -79,15 +82,14 @@ switch cviMsg.Tasknumber
         %%
         origin = [l/2,w/2];    % Sets the origin coordinates
         
-        m = 1;
-        n = 1;
-        while m < 60 && n < 30 && (60-m > 30-n)
+        m = 1;  % total attempts
+        n = 1;  % successful attempts
+        while m < 60 && n < 30 && (60-m > 30-n) % take at most 60 frames
             %% Processing
             tic;
             blur = imresize(cv.medianBlur(img,'KSize',5),1/scale);    % blur color image
             HSV = rgb2hsv(blur);                     % convert color image to LAB colorspace
             HSV = uint8(HSV*255);
-            
             
             
             %% Color Threshold
@@ -190,14 +192,14 @@ switch cviMsg.Tasknumber
             m = m + 1;
         end
         if n == 30
-            fcdMsg.FrontCamVerticalDistance = mean(delta_h);
-            fcdMsg.FrontCamHorizontalDistance = mean(theta);
-            fcdMsg.FrontCamForwardDistance = mean(distance);
+            fcdMsg.FrontCamVerticalDistance = mean(delta_h(15:end));
+            fcdMsg.FrontCamHorizontalDistance = mean(theta(15:end));
+            fcdMsg.FrontCamForwardDistance = mean(distance(15:end));
             fprintf('Height:%3.2f  Angle:%2.1f   Distance:%3.2f\n',fcdMsg.FrontCamVerticalDistance,fcdMsg.FrontCamHorizontalDistance,...
                 fcdMsg.FrontCamForwardDistance);
             found = true;
         else
             found = false;
-            fprintf('Not found')
+            fprintf('Not found\n')
         end
 end
