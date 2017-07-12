@@ -6,11 +6,13 @@ given_radius = 8*49/8;
 given_distance = 60;
 color_choice = 3;       % integer; colors listed below
 camdevice = 'usb';   % 'webcam' 'image' 'usb'
-videofeed = false;      % shows results
-thresh = 15;            % threshold sensitivity
+videofeed = true;      % shows results
+satthresh = 80;        % threshold sensitivity for saturation channel (0-255)
+huethresh = 15;        % threshold sensitivity for hue channel (0-255)
 scale = 4;              % image processing scaling
 display = 1;            % display image scaling
 corners = false;        % display shape corners
+
 
 %% Colors
 
@@ -18,7 +20,7 @@ colors_list = { 'red',[255,0,0];        % 1
     'green',[25,123,76];      % 2
     'yellow',[199,204,120]      %3
     'pink',[255,102,102]
-    'bouy',[141,253,170]};
+    'bouy',[101,240,127]};
 
 %% Initialize OpenCV
 
@@ -31,11 +33,20 @@ else
 end
 
 %% Initialize Color
-color = single([]); % cv.cvtColor() needs values between 0-1
+color = uint8([]);
 color(1,1,:) = colors_list{color_choice,2}; % pick color from RGB choices
-color = cv.cvtColor(color./255,'RGB2Lab');     % convert color choice to LAB colorspace
-color = int8(color); % Lab values are between -128:128
-color = [color-thresh,color+thresh]; % make a color threshold range
+colorHSV = rgb2hsv(color);     % convert color choice to LAB colorspace
+color = colorHSV;
+huethresh = huethresh/255;
+satthresh = satthresh/255;
+colorthresh = zeros(1,2,2);
+colorthresh(:,:,1) = [color(:,:,1)-huethresh,color(:,:,1)+huethresh];
+colorthresh(:,:,2) = [color(:,:,2)-satthresh,color(:,:,2)+satthresh];
+colorthresh(:,:,1) = mod(colorthresh(:,:,1),1);
+colorthresh = uint8(colorthresh*255);
+
+lowerb = colorthresh(1,1,:); % lower bound
+upperb = colorthresh(1,2,:); % upper bound
 
 %% Camera initialization
 
@@ -43,14 +54,14 @@ switch camdevice
     case 'webcam'
         camera = cv.VideoCapture();
         pause(2);
-        img = single(camera.read());
+        img = camera.read();
     case 'image'
         img = which('buoy.png');
-        img = single(cv.imread(img, 'Flags',1));
+        img = cv.imread(img, 'Flags',1);
     otherwise
         camera = videoinput('tisimaq_r2013',1,'RGB24 (744x480)');
         pause(2);
-        img = single(getsnapshot(camera));
+        img = getsnapshot(camera);
         img = img(31:400,71:654,:);
 end
 
@@ -65,17 +76,25 @@ while 1
     %% Processing
     tic;
     blur = imresize(cv.medianBlur(img,'KSize',5),1/scale);    % blur color image
-    Lab = cv.cvtColor(blur./255, 'RGB2Lab');                     % convert color image to LAB colorspace
+    HSV = rgb2hsv(blur);                     % convert color image to LAB colorspace
+    HSV = uint8(HSV*255);
     
     
-    lowerb = color(1,1,:); % lower bound
-    upperb = color(1,2,:); % upper bound
+
     %% Color Threshold
     % filter out all unwanted color
     
-    mask = (Lab(:,:,2) > lowerb(:,:,2)) & ...
-        (Lab(:,:,2) < upperb(:,:,2)) & (Lab(:,:,3) > lowerb(:,:,3))...
-        & (Lab(:,:,3) < upperb(:,:,3));                        % does the same thing as cv.inRange()
+
+    if lowerb(:,:,1) > upperb(:,:,1)
+        
+        mask = (HSV(:,:,2) > lowerb(:,:,2)) &...
+            (HSV(:,:,2) < upperb(:,:,2)) & ((HSV(:,:,1) > lowerb(:,:,1))...
+            | (HSV(:,:,1) < upperb(:,:,1)));                        % does the same thing as cv.inRange()
+    else
+        mask = (HSV(:,:,2) > lowerb(:,:,2)) &...
+            (HSV(:,:,2) < upperb(:,:,2)) & (HSV(:,:,1) > lowerb(:,:,1))...
+            & (HSV(:,:,1) < upperb(:,:,1));
+    end
     
     output = uint8(cv.bitwise_and(blur,blur,'Mask',mask)); % apply the mask
     output = cv.cvtColor(output,'RGB2GRAY'); % grayscale
@@ -100,7 +119,7 @@ while 1
         if ~isnan(A(1,2))
             %% Calculate the shape of the detected contour
             
-            while ~circles && k < 2 && k <= length(A(:,1)) && A(k,1) > 100
+            while ~circles && k < 10 && k <= length(A(:,1)) && A(k,1) > 25
                 c = A(k,2);             % index of contour with largest area
                 cnt = cnts{c};
                 M = cv.moments(cnt);
@@ -134,15 +153,15 @@ while 1
     
     
     if videofeed
-        imshow(uint8(imresize(img,1/display)));
+        imshow(imresize(img,1/display));
     end
     switch camdevice
         case 'webcam'
-            img = single(camera.read()); % initialize camera image for next loop
+            img = camera.read(); % initialize camera image for next loop
         case 'image'
             break
         otherwise
-            img = single(getsnapshot(camera));
+            img = getsnapshot(camera);
             img = img(31:400,71:654,:);
     end
     t = toc;
