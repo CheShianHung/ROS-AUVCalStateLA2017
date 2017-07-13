@@ -82,7 +82,7 @@ while 1
 end
 
 %% Front Camera
-function FrontCamera( taskNum, givenC, givenS, givenL, givenD)
+function FrontCamera(taskNum, givenC, givenS, givenL, givenD)
     %fprintf('taskNum: %d ,givenC: %d ,givenS: %d ,givenL: %.2f ,givenD: %.2f', taskNum, givenC, givenS, givenL, givenD); 
     global tiMsg;
     global testTimer;
