@@ -14,20 +14,21 @@ function FrontCamera(cviMsg)
 
 
 %% Initialize outputs
-delta_h = zeros(1,15);
+meandelta_h = zeros(1,15);
+meandelta_x = zeros(1,15);
 theta = zeros(1,15);
-distance = zeros(1,15);
-global found;
+meandistance = zeros(1,15);
 global camera;
 global fcdMsg;
+global tiMsg;
 
 %% Given Constants
 
-% given_radius = 8*49/8;
+% cviMsg.GivenLength = 8*49/8;
 given_radius = cviMsg.GivenLength;
-% given_distance = 60;
+% cviMsg.GivenDistance = 60;
 given_distance = cviMsg.GivenDistance;
-% color_choice = 2;       % integer; colors listed below
+% cviMsg.GivenColor = 2;       % integer; colors listed below
 color_choice = cviMsg.GivenColor;
 camdevice = 'usb';   % 'webcam' 'image' 'usb'
 videofeed = false;      % shows results
@@ -174,32 +175,33 @@ switch cviMsg.Tasknumber
                     img = getsnapshot(camera);
                     img = img(31:400,71:654,:);
             end
-            t = toc;
-            if 1/t > 10
-                pause(.1-t);
-            end
+            
             if circles
                 center = [cX,cY];
-                delta_h(n) = (origin(2)-center(2))./10;
+                delta_h = (origin(2)-center(2))./10;
+                meandelta_h(n) = delta_h;
+                fcdMsg.FrontCamVerticalDistance = delta_h;
                 delta_x = (origin(1)-center(1))./10;
-                distance(n) = given_distance*given_radius/radius;
-                theta(n) = atand(double(distance(n)/delta_x));
-                %         fprintf('Height:%3.2f   Angle:%2.1f     Distance:%3.2f  fps:%2.2f\n',delta_h(n),theta(n),distance(n),1/toc); % print the calculated height and amount needed to turn
+                meandelta_x(n) = delta_x;
+                fcdMsg.FrontCamHorizontalDistance = delta_x;
+                distance = given_distance*given_radius/radius;
+                meandistance(n) = distance;
+                fcdMsg.FrontCamForwardDistance = distance;
+                theta(n) = atand(double(distance/delta_x));
+                fprintf('Height:%3.2f Direction:%3.2f Distance:%3.2f\n',delta_h,delta_x,distance); % print the calculated height and amount needed to turn
                 n = n + 1;
-            else
-                fprintf('fps:%2.2f\n',1/toc);
             end
             m = m + 1;
         end
         if n == 30
-            fcdMsg.FrontCamVerticalDistance = mean(delta_h(15:end));
+            tiMsg.Direction = mean(meandelta_x(15:end));
+            tiMsg.Height = mean(meandelta_h(15:end));
             fcdMsg.FrontCamHorizontalDistance = mean(theta(15:end));
-            fcdMsg.FrontCamForwardDistance = mean(distance(15:end));
-            fprintf('Height:%3.2f  Angle:%2.1f   Distance:%3.2f\n',fcdMsg.FrontCamVerticalDistance,fcdMsg.FrontCamHorizontalDistance,...
-                fcdMsg.FrontCamForwardDistance);
-            found = true;
+            fcdMsg.FrontCamForwardDistance = mean(meandistance(15:end));
+            fprintf('FOUND\nAVERAGE: Height:%3.2f Direction:%3.2f\n',tiMsg.Height,tiMsg.Direction);
+            tiMsg.State = true;
         else
-            found = false;
+            tiMsg.State = false;
             fprintf('Not found\n')
         end
 end
