@@ -20,22 +20,22 @@
 #define Kp 2.0f * 5.0f // these are the free parameters in the Mahony filter and fusion scheme, Kp for proportional feedback, Ki for integral
 #define Ki 0.0f
 
-#define LSM9DS0_XM  0x1D 
-#define LSM9DS0_G   0x6B 
+#define LSM9DS0_XM  0x1D
+#define LSM9DS0_G   0x6B
 LSM9DS0 dof(MODE_I2C, LSM9DS0_G, LSM9DS0_XM);
 
 const byte INT1XM = 53; // INT1XM tells us when accel data is ready
 const byte INT2XM = 51; // INT2XM tells us when mag data is ready
 const byte DRDYG  = 49; // DRDYG  tells us when gyro data is ready
 
-//Initialization of the Servo's for Blue Robotics Motors 
+//Initialization of the Servo's for Blue Robotics Motors
 Servo T1;     //right front
 Servo T2;     //right back
-Servo T3;     //left front 
+Servo T3;     //left front
 Servo T4;     //left back
 Servo T5;     //right front
 Servo T6;     //right back
-Servo T7;     //left front 
+Servo T7;     //left front
 Servo T8;     //left back
 
 MS5837 sensor;
@@ -56,7 +56,7 @@ uint32_t Now = 0;           // used to calculate integration interval
 int i;
 int PWM_Motors_orient;
 float abias[3] = {0, 0, 0}, gbias[3] = {0, 0, 0};
-float ax, ay, az, gx, gy, gz, mx, my, mz; // variables to hold latest sensor data values 
+float ax, ay, az, gx, gy, gz, mx, my, mz; // variables to hold latest sensor data values
 float q[4] = {1.0f, 0.0f, 0.0f, 0.0f};    // vector to hold quaternion
 float eInt[3] = {0.0f, 0.0f, 0.0f};       // vector to hold integral error for Mahony method
 float temperature;
@@ -122,7 +122,7 @@ ros::Publisher currentRotationPublisher("current_rotation", &currentRotation);  
 void hControlCallback(const auv_cal_state_la_2017::HControl& hControl);
 void rControlCallback(const auv_cal_state_la_2017::RControl& rControl);
 void mControlCallback(const auv_cal_state_la_2017::MControl& mControl);
-void frontCamDistanceCallback(const auv_cal_state_la_2017::FrontCamDistance& frontCamDistance);  
+void frontCamDistanceCallback(const auv_cal_state_la_2017::FrontCamDistance& frontCamDistance);
 void bottomCamDistanceCallback(const auv_cal_state_la_2017::BottomCamDistance& bottomCamDistance);
 ros::Subscriber<auv_cal_state_la_2017::HControl> hControlSubscriber("height_control", &hControlCallback);   //int: state, float: depth
 ros::Subscriber<auv_cal_state_la_2017::RControl> rControlSubscriber("rotation_control", &rControlCallback); //int: state, float: rotation
@@ -131,14 +131,14 @@ ros::Subscriber<auv_cal_state_la_2017::FrontCamDistance> frontCamDistanceSubscri
 ros::Subscriber<auv_cal_state_la_2017::BottomCamDistance> bottomCamDistanceSubscriber("bottom_cam_distance", &bottomCamDistanceCallback);
 
 void setup() {
-  
+
   //For servo motors on Pelican, pins 2-5 are for motors 1-4. PWM on these motors are 1100-1499 (counter
   //clockwise direction) and 1501-1900 (clockwise direction). Note that in code I use pins 6-8, this was used
-  //for testing with leds. 
+  //for testing with leds.
   pinMode(INT1XM, INPUT);
   pinMode(INT2XM, INPUT);
   pinMode(DRDYG,  INPUT);
-  pinMode(2, OUTPUT); //1 on motor  
+  pinMode(2, OUTPUT); //1 on motor
   pinMode(3, OUTPUT); //2 on motor
   pinMode(4, OUTPUT); //3 on motor
   pinMode(5, OUTPUT); //4 on motor
@@ -146,12 +146,12 @@ void setup() {
   pinMode(7, OUTPUT); //6 on motor
   pinMode(8, OUTPUT); //7 on motor
   pinMode(9, OUTPUT); //8 on motor
-  
+
  //Pelican Motors activation of motors (initialization of pins to servo motors)
   T1.attach(2); //right front servo
-  T1.writeMicroseconds(1500);  
+  T1.writeMicroseconds(1500);
   T2.attach(3); //right back servo
-  T2.writeMicroseconds(1500);  
+  T2.writeMicroseconds(1500);
   T3.attach(4); //back left servo
   T3.writeMicroseconds(1500);
   T4.attach(5); //front left servo
@@ -164,10 +164,10 @@ void setup() {
   T7.writeMicroseconds(1500);
   T8.attach(9); //front left servo
   T8.writeMicroseconds(1500);
-  
+
   delay(1000);
-  
-  
+
+
   Wire.begin();
   Serial.begin(38400);
 
@@ -204,7 +204,7 @@ void setup() {
   keepMovingRight = false;
   keepMovingBackward = false;
   keepMovingLeft = false;
-  
+
   //Testing------------------
   feetDepth_read = 0;
   yaw = 0;
@@ -213,10 +213,10 @@ void setup() {
 
   assignedDepth = topDepth;
   currentDepth.data = feetDepth_read;
-  
+
   assignedYaw = yaw;
   currentRotation.data = yaw;
-  
+
   hControlStatus.state = 1;
   hControlStatus.depth = 0;
   rControlStatus.state = 1;
@@ -233,7 +233,7 @@ void setup() {
   mControlStatus.power = 0;
   mControlStatus.distance = 0;
   mControlStatus.runningTime = 0;
-  
+
   nh.initNode();
   nh.subscribe(hControlSubscriber);
   nh.subscribe(rControlSubscriber);
@@ -244,18 +244,18 @@ void setup() {
   nh.advertise(currentDepthPublisher);
   nh.advertise(currentRotationPublisher);
 
-  initializeIMU();                    
+  initializeIMU();
 
-  sensor.init();  
+  sensor.init();
   sensor.setFluidDensity(997); // kg/m^3 (997 freshwater, 1029 for seawater)
-  
+
   nh.loginfo("Data is ready.");
   nh.loginfo("Sub is staying. Waiting to receive data from master...\n");
 
 }
 
 void loop() {
-  
+
   gettingRawData();
   sensor.read();
   //Timer
@@ -263,23 +263,23 @@ void loop() {
   deltat = ((Now - lastUpdate)/1000000.0f); // set integration time by time elapsed since last filter update
   lastUpdate = Now;
   // Sensors x- and y-axes are aligned but magnetometer z-axis (+ down) is opposite to z-axis (+ up) of accelerometer and gyro!
-  // This is ok by aircraft orientation standards!  
+  // This is ok by aircraft orientation standards!
   // Pass gyro rate as rad/s
   MahonyQuaternionUpdate(ax, ay, az, gx*PI/180.0f, gy*PI/180.0f, gz*PI/180.0f, mx, my, mz);
-  
-  //yaw   = atan2(2.0f * (q[1] * q[2] + q[0] * q[3]), q[0] * q[0] + q[1] * q[1] - q[2] * q[2] - q[3] * q[3]);   
+
+  //yaw   = atan2(2.0f * (q[1] * q[2] + q[0] * q[3]), q[0] * q[0] + q[1] * q[1] - q[2] * q[2] - q[3] * q[3]);
   pitch = -asin(2.0f * (q[1] * q[3] - q[0] * q[2]));
   roll  = atan2(2.0f * (q[0] * q[1] + q[2] * q[3]), q[0] * q[0] - q[1] * q[1] - q[2] * q[2] + q[3] * q[3]);
   pitch *= 180.0f / PI;
-  //yaw   *= 180.0f / PI; 
+  //yaw   *= 180.0f / PI;
   //yaw   -= 13.8; // Declination at Danville, California is 13 degrees 48 minutes and 47 seconds on 2014-04-04
   roll  *= 180.0f / PI;
 
   //Depth
   //Testing----------------------
-  //feetDepth_read =  sensor.depth() * 3.28 + 0.8;                                   //1 meter = 3.28 feet  
+  //feetDepth_read =  sensor.depth() * 3.28 + 0.8;                                   //1 meter = 3.28 feet
   dutyCycl_depth = (abs(assignedDepth - feetDepth_read)/ 13.0);              //function to get a percentage of assigned height to the feet read
-  PWM_Motors_Depth = dutyCycl_depth * 400;                                   //PWM for motors are between 1500 - 1900; difference is 400 
+  PWM_Motors_Depth = dutyCycl_depth * 400;                                   //PWM for motors are between 1500 - 1900; difference is 400
 
   //Rotation
   //duty cycle and PWM calculation for orientation
@@ -297,8 +297,8 @@ void loop() {
   currentDepthPublisher.publish(&currentDepth);
   currentRotation.data = yaw;
   currentRotationPublisher.publish(&currentRotation);
-  
-  nh.spinOnce();    
+
+  nh.spinOnce();
 
   delay(10);
 }
@@ -307,10 +307,10 @@ void loop() {
 void hControlCallback(const auv_cal_state_la_2017::HControl& hControl) {
 
   char depthChar[6];
-  float depth = hControl.depth;  
+  float depth = hControl.depth;
   dtostrf(depth, 4, 2, depthChar);
 
-  if(hControl.state == 0){  
+  if(hControl.state == 0){
     if(!isGoingUp && !isGoingDown){
       if(depth == -1 || depth + assignedDepth >= bottomDepth)
         assignedDepth = bottomDepth;
@@ -323,7 +323,7 @@ void hControlCallback(const auv_cal_state_la_2017::HControl& hControl) {
     }else
       nh.loginfo("Sub is still running. Command abort.");
   }
-  else if(hControl.state == 1){  
+  else if(hControl.state == 1){
     if(isGoingUp || isGoingDown){
       isGoingUp = false;
       isGoingDown = false;
@@ -335,56 +335,56 @@ void hControlCallback(const auv_cal_state_la_2017::HControl& hControl) {
     if(!isGoingUp && !isGoingDown){
       if(depth == -1 || depth >= assignedDepth - topDepth)
         assignedDepth = topDepth;
-      else 
+      else
         assignedDepth = assignedDepth - depth;
       isGoingUp = true;
       nh.loginfo("Going up...");
       nh.loginfo(depthChar);
       nh.loginfo("ft...(-1 means infinite)\n");
     }else
-      nh.loginfo("Sub is still running.Command abort.");
+      nh.loginfo("Sub is still running. Command abort.");
   }
   else if(hControl.state == 4){
     if(!subIsReady){
       subIsReady = true;
       nh.loginfo("Motors unlocked.");
       assignedDepth = 1;
-    }   
+    }
   }
   hControlStatus.state = hControl.state;
   hControlStatus.depth = hControl.depth;
   hControlPublisher.publish(&hControlStatus);
-  
+
 }
 
 
 void rControlCallback(const auv_cal_state_la_2017::RControl& rControl){
-  
+
   char rotationChar[11];
-  float rotation = rControl.rotation;   
+  float rotation = rControl.rotation;
   dtostrf(rotation, 4, 2, rotationChar);
 
-  if(rControl.state == 0){  
+  if(rControl.state == 0){
     if(!isTurningRight && !isTurningLeft){
       if(rotation == -1) {
         keepTurningLeft = true;
         //Testing---------------------------------------------------
         rotationTimer = 0;
       }
-      else{     
-        if (yaw + rotation >= rotationUpperBound) 
+      else{
+        if (yaw + rotation >= rotationUpperBound)
           assignedYaw = yaw + rotation - 360;
-        else 
-          assignedYaw = yaw + rotation;        
+        else
+          assignedYaw = yaw + rotation;
       }
       isTurningLeft = true;
       nh.loginfo("Turning left...");
       nh.loginfo(rotationChar);
       nh.loginfo("degree...(-1 means infinite)\n");
-    }else 
+    }else
       nh.loginfo("Sub is still rotating. Command abort.");
   }
-  else if(rControl.state == 1){  
+  else if(rControl.state == 1){
     if(isTurningRight || isTurningLeft || keepTurningRight || keepTurningLeft){
       isTurningRight = false;
       isTurningLeft = false;
@@ -392,7 +392,7 @@ void rControlCallback(const auv_cal_state_la_2017::RControl& rControl){
       keepTurningLeft = false;
       nh.loginfo("Rotation control is now cancelled\n");
     }
-    assignedYaw = yaw;    
+    assignedYaw = yaw;
   }
   else if(rControl.state == 2){
     if(!isTurningRight && !isTurningLeft){
@@ -402,22 +402,22 @@ void rControlCallback(const auv_cal_state_la_2017::RControl& rControl){
         rotationTimer = 0;
       }
       else{
-        if (yaw - rotation < rotationLowerBound) 
+        if (yaw - rotation < rotationLowerBound)
           assignedYaw = yaw - rotation + 360;
-        else 
-          assignedYaw = yaw - rotation;        
-      } 
+        else
+          assignedYaw = yaw - rotation;
+      }
       isTurningRight = true;
       nh.loginfo("Turning right...");
       nh.loginfo(rotationChar);
       nh.loginfo("degree...(-1 means infinite)");
-    }else 
+    }else
       nh.loginfo("Sub is still rotating.Command abort.");
   }
   rControlStatus.state = rControl.state;
   rControlStatus.rotation = rControl.rotation;
   rControlPublisher.publish(&rControlStatus);
-  
+
 }
 
 // MControl
@@ -437,7 +437,7 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
   dtostrf(power, 4, 2, powerChar);
   dtostrf(distance, 4, 2, distanceChar);
   dtostrf(mode5Time, 4, 2, timeChar);
-  
+
 
   if(mControl.state == 0){
     if(mControlMode1 || mControlMode2|| mControlMode3 || mControlMode4 || mControlMode5){
@@ -480,8 +480,8 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
         keepMovingLeft = true;
         directionStr = "left";
       }
-      
-      directionStr = "Moving " + directionStr + " with power..."; 
+
+      directionStr = "Moving " + directionStr + " with power...";
       nh.loginfo(directionStr.c_str());
       nh.loginfo(powerChar);
       nh.loginfo("...\n");
@@ -492,7 +492,7 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
       mControlDirection = mControl.mDirection;
       mControlPower = mControl.power;
       mControlDistance = 0;
-    }   
+    }
   }
   else if(mControl.state == 2){
     if(mControlMode1 || mControlMode2|| mControlMode3 || mControlMode4 || mControlMode5)
@@ -503,7 +503,7 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
       nh.loginfo("Adjusting distance to...");
       nh.loginfo(distanceChar);
       nh.loginfo("away from the target.../n");
-      
+
       mControlMode2 = true;
       mControlPower = 0;
       mControlDistance = mControl.distance;
@@ -551,8 +551,8 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
       else if(mControl.mDirection == 4){
         directionStr = "left";
       }
-      
-      directionStr = "Moving " + directionStr + " with power..."; 
+
+      directionStr = "Moving " + directionStr + " with power...";
       nh.loginfo(directionStr.c_str());
       nh.loginfo(powerChar);
       nh.loginfo("for...");
@@ -565,7 +565,7 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
       mControlPower = mControl.power;
       mControlRunningTime = mControl.runningTime;
       mControlDistance = 0;
-    }  
+    }
   }
   mControlStatus.state = mControl.state;
   mControlStatus.mDirection = mControl.mDirection;
@@ -573,7 +573,7 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
   mControlStatus.distance = mControl.distance;
   mControlStatus.runningTime = mControl.runningTime;
   mControlPublisher.publish(&mControlStatus);
-  
+
 }
 
 
@@ -582,7 +582,7 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
 //  int high = 4;
 //  int low = 2;
 //  int basePower = 50;
-//  for (i = 0; (2 * i) < 90; i++){ //loop will start from 0 degrees -> 90 degrees 
+//  for (i = 0; (2 * i) < 90; i++){ //loop will start from 0 degrees -> 90 degrees
 //    //right
 //    if((roll > 2*i) && (roll < (2*i + 2))){
 //      //Boost the right motors
@@ -608,7 +608,7 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
 //      T4.writeMicroseconds(1500 - basePower + i*high);
 //      //Downgrade the front motors
 //      T1.writeMicroseconds(1500 + basePower + i*low);
-//      T2.writeMicroseconds(1500 - basePower - i*low);  
+//      T2.writeMicroseconds(1500 - basePower - i*low);
 //    }
 //    //forward
 //    if((pitch < -1*( 2*i)) && (pitch > -1 *(2*i + 2))){
@@ -620,7 +620,7 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
 //      T4.writeMicroseconds(1500 - basePower - i*low);
 //    }
 //  }
-//  
+//
 //}
 
 //Going upward
@@ -650,13 +650,13 @@ void goingUpward(){
       T2.writeMicroseconds(1500 - PWM_Motors_Depth - i * reversedLevelPower);
     }
     //pitched backward(positive value)
-    if((pitch > 2 * i) && (pitch < (2 * i + 2))){ 
+    if((pitch > 2 * i) && (pitch < (2 * i + 2))){
       //Boost the back motors
       T1.writeMicroseconds(1500 + PWM_Motors_Depth + i * levelPower);
       T4.writeMicroseconds(1500 - PWM_Motors_Depth - i * levelPower);
       //Downgrade the front motors
       T2.writeMicroseconds(1500 - PWM_Motors_Depth - i * reversedLevelPower);
-      T3.writeMicroseconds(1500 - PWM_Motors_Depth - i * reversedLevelPower);  
+      T3.writeMicroseconds(1500 - PWM_Motors_Depth - i * reversedLevelPower);
     }
     //pitched forward(negative value)
     if((pitch < -1 * (2 * i)) && (pitch > -1 * (2 * i + 2))){
@@ -668,18 +668,18 @@ void goingUpward(){
       T4.writeMicroseconds(1500 - PWM_Motors_Depth - i * reversedLevelPower);
     }
   }
-    
+
 }
 
 //Going downward
 void goingDownward(){
-  
+
   PWM_Motors_Depth = -PWM_Motors_Depth;
   int basePower = 0;
   int levelPower = ((400 + PWM_Motors_Depth) / 45) * (-1);
   int reversedLevelPower = ((-1) * PWM_Motors_Depth) / 45;
 
-  for (i = 0; (2 * i) < 90; i++){ //loop will start from 0 degrees -> 90 degrees 
+  for (i = 0; (2 * i) < 90; i++){ //loop will start from 0 degrees -> 90 degrees
     //rolled left (positive value)
     if((roll > 2*i) && (roll < (2*i + 2))){
       //Boost the left motors
@@ -687,7 +687,7 @@ void goingDownward(){
       T2.writeMicroseconds(1500 - PWM_Motors_Depth - i * levelPower);
       //Downgrade the right motors
       T3.writeMicroseconds(1500 - PWM_Motors_Depth - i * reversedLevelPower);
-      T4.writeMicroseconds(1500 - PWM_Motors_Depth - i * reversedLevelPower);       
+      T4.writeMicroseconds(1500 - PWM_Motors_Depth - i * reversedLevelPower);
     }
     //rolled right (negative values)
     if((roll < -1 *(2*i)) && (roll > -1 *(2*i + 2))){
@@ -696,7 +696,7 @@ void goingDownward(){
       T4.writeMicroseconds(1500 - PWM_Motors_Depth - i * levelPower);
       //Downgrade the left motors
       T1.writeMicroseconds(1500 + PWM_Motors_Depth + i * reversedLevelPower);
-      T2.writeMicroseconds(1500 - PWM_Motors_Depth - i * reversedLevelPower);     
+      T2.writeMicroseconds(1500 - PWM_Motors_Depth - i * reversedLevelPower);
     }
     //pitched back (positive value)
     if((pitch > 2*i) && (pitch < (2*i + 2))){
@@ -705,7 +705,7 @@ void goingDownward(){
       T4.writeMicroseconds(1500 - PWM_Motors_Depth - i * levelPower);
       //Downgrade the front motors
       T2.writeMicroseconds(1500 - PWM_Motors_Depth - i * reversedLevelPower);
-      T3.writeMicroseconds(1500 - PWM_Motors_Depth - i * reversedLevelPower);       
+      T3.writeMicroseconds(1500 - PWM_Motors_Depth - i * reversedLevelPower);
     }
     //pitched forward (negative value)
     if((pitch < -1*( 2*i)) && (pitch > -1 *(2*i + 2))){
@@ -714,33 +714,33 @@ void goingDownward(){
       T3.writeMicroseconds(1500 - PWM_Motors_Depth - i * levelPower);
       //Downgrade the back motors
       T1.writeMicroseconds(1500 + PWM_Motors_Depth + i * reversedLevelPower);
-      T4.writeMicroseconds(1500 - PWM_Motors_Depth - i * reversedLevelPower);    
+      T4.writeMicroseconds(1500 - PWM_Motors_Depth - i * reversedLevelPower);
     }
   }
-    
+
 }
 
 void heightControl(){
   float heightError = 0.1;
-  
+
   //Going down
-  if (feetDepth_read < assignedDepth){   
+  if (feetDepth_read < assignedDepth){
     goingDownward();
-    
+
     //Testing--------------------------
     feetDepth_read += 0.05;
-    
-  }  
+
+  }
   //Going up
-  else if (feetDepth_read > assignedDepth){ 
-    goingUpward(); 
-    
+  else if (feetDepth_read > assignedDepth){
+    goingUpward();
+
     //Testing---------------------------
     feetDepth_read -= 0.05;
-      
-  } 
+
+  }
   //Reach the height
-  if (feetDepth_read < assignedDepth + heightError && feetDepth_read > assignedDepth - heightError) {   
+  if (feetDepth_read < assignedDepth + heightError && feetDepth_read > assignedDepth - heightError) {
     if(isGoingUp || isGoingDown){
       isGoingUp = false;
       isGoingDown = false;
@@ -752,23 +752,23 @@ void heightControl(){
   }
 
 //  //Going down
-//  if (feetDepth_read < assignedDepth - heightError){   
+//  if (feetDepth_read < assignedDepth - heightError){
 //    goingDownward();
-//    
+//
 //    //Testing--------------------------
 //    feetDepth_read += 0.05;
-//    
-//  }  
+//
+//  }
 //  //Going up
-//  else if (feetDepth_read > assignedDepth + heightError){ 
-//    goingUpward(); 
-//    
+//  else if (feetDepth_read > assignedDepth + heightError){
+//    goingUpward();
+//
 //    //Testing---------------------------
 //    feetDepth_read -= 0.05;
-//      
-//  } 
+//
+//  }
 //  //Staying
-//  else {   
+//  else {
 //    if(isGoingUp || isGoingDown){
 //      isGoingUp = false;
 //      isGoingDown = false;
@@ -779,7 +779,7 @@ void heightControl(){
 //    hControlPublisher.publish(&hControlStatus);
 //    stayLeveling();
 //  }
-  
+
 }
 
 //read rotation is from -193.8 to 166.2
@@ -788,7 +788,7 @@ void rotationControl(){
   float delta = degreeToTurn();
   float rotationError = 3;
   int fixedPower = 60;
-  
+
   if(keepTurningLeft){
     //Turn on left rotation motor with fixed power
     T5.writeMicroseconds(1500 + fixedPower);
@@ -799,7 +799,7 @@ void rotationControl(){
     if(rotationTimer > rotationTime)
       keepTurningLeft = false;
     yaw += 0.05;
-    if(yaw > rotationUpperBound) 
+    if(yaw > rotationUpperBound)
       yaw -= 360;
   }
   else if(keepTurningRight){
@@ -812,26 +812,26 @@ void rotationControl(){
     if(rotationTimer > rotationTime)
       keepTurningRight = false;
     yaw -= 0.05;
-    if(yaw < rotationLowerBound) 
+    if(yaw < rotationLowerBound)
       yaw +=360;
   }
   // AutoRotation to the assignedYaw with 1 degree error tolerance
-  else if(delta > 1){ 
+  else if(delta > 1){
     if(yaw + delta > rotationUpperBound){
-      if(yaw - delta == assignedYaw) 
+      if(yaw - delta == assignedYaw)
         rotateRightDynamically();
-      else 
+      else
         rotateLeftDynamically();
     }
     else if(yaw - delta < rotationLowerBound){
-      if(yaw + delta == assignedYaw) 
+      if(yaw + delta == assignedYaw)
         rotateLeftDynamically();
-      else 
+      else
         rotateRightDynamically();
     }
-    else if(yaw < assignedYaw) 
+    else if(yaw < assignedYaw)
       rotateLeftDynamically();
-    else 
+    else
       rotateRightDynamically();
   }
   //No rotation
@@ -844,10 +844,10 @@ void rotationControl(){
       nh.loginfo("Assigned rotation reached.\n");
     }
     rControlStatus.state = 1;
-    rControlStatus.rotation = 0;     
+    rControlStatus.rotation = 0;
     rControlPublisher.publish(&rControlStatus);
   }
-  
+
 }
 
 
@@ -913,7 +913,7 @@ void movementControl(){
     if(distanceToReach > error){
       centerTimer = 0;
     }
-    else if(distanceToReach < error){     
+    else if(distanceToReach < error){
       centerTimer = 0;
     }
     else{
@@ -923,10 +923,10 @@ void movementControl(){
         nh.loginfo("Target distance reached.\n");
       }
     }
-    
+
   }
   else if(mControlMode3){
-    float error = 0.5;    
+    float error = 0.5;
     if(frontCamHorizontalDistance > 0){
       //Turn on the right motors with a proportional speed to the frontCamHorizontalDistance
       //Greater the frontCamHorizontalDistance, greater the power
@@ -942,10 +942,10 @@ void movementControl(){
       //positionX -= 0.1;
     }
     //Timer
-    if(frontCamHorizontalDistance > error){ 
+    if(frontCamHorizontalDistance > error){
       centerTimer = 0;
     }
-    else if(frontCamHorizontalDistance < -error){     
+    else if(frontCamHorizontalDistance < -error){
       centerTimer = 0;
     }
     else{
@@ -972,10 +972,10 @@ void movementControl(){
       //Testing-----------------------------
       //positionX -= 0.1;
     }
-    if(bottomCamHorizontalDistance > error){    
+    if(bottomCamHorizontalDistance > error){
       centerTimer = 0;
     }
-    else if(bottomCamHorizontalDistance < -error){     
+    else if(bottomCamHorizontalDistance < -error){
       centerTimer = 0;
     }
     else{
@@ -1002,7 +1002,7 @@ void movementControl(){
     if(bottomCamVerticalDistance > error){
       centerTimer = 0;
     }
-    else if(bottomCamVerticalDistance < -error){   
+    else if(bottomCamVerticalDistance < -error){
       centerTimer = 0;
     }
     else{
@@ -1070,7 +1070,7 @@ void movementControl(){
     mControlStatus.runningTime = 0;
     mControlPublisher.publish(&mControlStatus);
   }
-  
+
 }
 
 
@@ -1088,19 +1088,19 @@ void bottomCamDistanceCallback(const auv_cal_state_la_2017::BottomCamDistance& b
 }
 
 
-//&&&&&&&&&&&&&&&&&&&&&&&&&& 
+//&&&&&&&&&&&&&&&&&&&&&&&&&&
 //NOTE: I FORGOT WHAT IS THE ROTATION ON THE MOTORS IN THE BOT TO SEE WHAT DIRECTION OF MOVEMENT
-//WHEN I RETURN TO THE ROOM I CAN FIND OUT AND EDIT THIS CODE.  
-//  if (yaw < assignedYaw){  
+//WHEN I RETURN TO THE ROOM I CAN FIND OUT AND EDIT THIS CODE.
+//  if (yaw < assignedYaw){
 //    //turn on motos to go down
 //    T5.writeMicroseconds(1500 + PWM_Motors);
 //    T7.writeMicroseconds(1500 - PWM_Motors);
 //  }
-//  else if (yaw > assignedYaw){ 
+//  else if (yaw > assignedYaw){
 //    //turn on motors to go up
 //    T5.writeMicroseconds(1500 - PWM_Motors);
 //    T7.writeMicroseconds(1500 + PWM_Motors);
-//  } 
+//  }
 void rotateLeftDynamically(){
   //Rotate left with PWM_Motors_orient
   T5.writeMicroseconds(1500 + PWM_Motors_orient);
@@ -1108,7 +1108,7 @@ void rotateLeftDynamically(){
   //Testing----------------------------
   yaw += 1;
   if(yaw > rotationUpperBound) yaw -= 360;
-  
+
 }
 
 void rotateRightDynamically(){
@@ -1118,7 +1118,7 @@ void rotateRightDynamically(){
   //Testing----------------------------
   yaw -= 1;
   if(yaw < rotationLowerBound) yaw +=360;
-  
+
 }
 
 //Return 0 to 180
@@ -1130,48 +1130,48 @@ float degreeToTurn(){
 
 
 void gettingRawData(){
-  
+
   if(digitalRead(DRDYG)) {  // When new gyro data is ready
   dof.readGyro();           // Read raw gyro data
     gx = dof.calcGyro(dof.gx) - gbias[0];   // Convert to degrees per seconds, remove gyro biases
     gy = dof.calcGyro(dof.gy) - gbias[1];
     gz = dof.calcGyro(dof.gz) - gbias[2];
   }
-  
+
   if(digitalRead(INT1XM)) {  // When new accelerometer data is ready
     dof.readAccel();         // Read raw accelerometer data
     ax = dof.calcAccel(dof.ax) - abias[0];   // Convert to g's, remove accelerometer biases
     ay = dof.calcAccel(dof.ay) - abias[1];
     az = dof.calcAccel(dof.az) - abias[2];
   }
-  
+
   if(digitalRead(INT2XM)) {  // When new magnetometer data is ready
     dof.readMag();           // Read raw magnetometer data
     mx = dof.calcMag(dof.mx);     // Convert to Gauss and correct for calibration
     my = dof.calcMag(dof.my);
     mz = dof.calcMag(dof.mz);
-    
+
     dof.readTemp();
     temperature = 21.0 + (float) dof.temperature/8.; // slope is 8 LSB per degree C, just guessing at the intercept
   }
-  
+
 }
 
 void initializeIMU(){
-  
+
   uint32_t status = dof.begin();
-  delay(2000); 
+  delay(2000);
 
   // Set data output ranges; choose lowest ranges for maximum resolution
-  // Accelerometer scale can be: A_SCALE_2G, A_SCALE_4G, A_SCALE_6G, A_SCALE_8G, or A_SCALE_16G   
+  // Accelerometer scale can be: A_SCALE_2G, A_SCALE_4G, A_SCALE_6G, A_SCALE_8G, or A_SCALE_16G
   dof.setAccelScale(dof.A_SCALE_2G);
   // Gyro scale can be:  G_SCALE__245, G_SCALE__500, or G_SCALE__2000DPS
   dof.setGyroScale(dof.G_SCALE_245DPS);
-  // Magnetometer scale can be: M_SCALE_2GS, M_SCALE_4GS, M_SCALE_8GS, M_SCALE_12GS   
+  // Magnetometer scale can be: M_SCALE_2GS, M_SCALE_4GS, M_SCALE_8GS, M_SCALE_12GS
   dof.setMagScale(dof.M_SCALE_2GS);
-  
-  // Set output data rates  
-  // Accelerometer output data rate (ODR) can be: A_ODR_3125 (3.225 Hz), A_ODR_625 (6.25 Hz), A_ODR_125 (12.5 Hz), A_ODR_25, A_ODR_50, 
+
+  // Set output data rates
+  // Accelerometer output data rate (ODR) can be: A_ODR_3125 (3.225 Hz), A_ODR_625 (6.25 Hz), A_ODR_125 (12.5 Hz), A_ODR_25, A_ODR_50,
   //                                              A_ODR_100,  A_ODR_200, A_ODR_400, A_ODR_800, A_ODR_1600 (1600 Hz)
   dof.setAccelODR(dof.A_ODR_200); // Set accelerometer update rate at 100 Hz
   // Accelerometer anti-aliasing filter rate can be 50, 194, 362, or 763 Hz
@@ -1179,22 +1179,22 @@ void initializeIMU(){
   // Strategy here is to effectively oversample accelerometer at 100 Hz and use a 50 Hz anti-aliasing (low-pass) filter frequency
   // to get a smooth ~150 Hz filter update rate
   dof.setAccelABW(dof.A_ABW_50); // Choose lowest filter setting for low noise
- 
+
   // Gyro output data rates can be: 95 Hz (bandwidth 12.5 or 25 Hz), 190 Hz (bandwidth 12.5, 25, 50, or 70 Hz)
   //                                 380 Hz (bandwidth 20, 25, 50, 100 Hz), or 760 Hz (bandwidth 30, 35, 50, 100 Hz)
   dof.setGyroODR(dof.G_ODR_190_BW_125);  // Set gyro update rate to 190 Hz with the smallest bandwidth for low noise
 
   // Magnetometer output data rate can be: 3.125 (ODR_3125), 6.25 (ODR_625), 12.5 (ODR_125), 25, 50, or 100 Hz
   dof.setMagODR(dof.M_ODR_125); // Set magnetometer to update every 80 ms
-    
+
   // Use the FIFO mode to average accelerometer and gyro readings to calculate the biases, which can then be removed from
   // all subsequent measurements.
   dof.calLSM9DS0(gbias, abias);
-  
+
 }
 
 void MahonyQuaternionUpdate(float ax, float ay, float az, float gx, float gy, float gz, float mx, float my, float mz){
-  
+
   float q1 = q[0], q2 = q[1], q3 = q[2], q4 = q[3];   // short name local variable for readability
   float norm;
   float hx, hy, bx, bz;
@@ -1212,7 +1212,7 @@ void MahonyQuaternionUpdate(float ax, float ay, float az, float gx, float gy, fl
   float q2q4 = q2 * q4;
   float q3q3 = q3 * q3;
   float q3q4 = q3 * q4;
-  float q4q4 = q4 * q4;   
+  float q4q4 = q4 * q4;
 
   // Normalise accelerometer measurement
   norm = sqrt(ax * ax + ay * ay + az * az);
@@ -1242,7 +1242,7 @@ void MahonyQuaternionUpdate(float ax, float ay, float az, float gx, float gy, fl
   vz = q1q1 - q2q2 - q3q3 + q4q4;
   wx = 2.0f * bx * (0.5f - q3q3 - q4q4) + 2.0f * bz * (q2q4 - q1q3);
   wy = 2.0f * bx * (q2q3 - q1q4) + 2.0f * bz * (q1q2 + q3q4);
-  wz = 2.0f * bx * (q1q3 + q2q4) + 2.0f * bz * (0.5f - q2q2 - q3q3);  
+  wz = 2.0f * bx * (q1q3 + q2q4) + 2.0f * bz * (0.5f - q2q2 - q3q3);
 
   // Error is cross product between estimated direction and measured direction of gravity
   ex = (ay * vz - az * vy) + (my * wz - mz * wy);
@@ -1265,7 +1265,7 @@ void MahonyQuaternionUpdate(float ax, float ay, float az, float gx, float gy, fl
   gx = gx + Kp * ex + Ki * eInt[0];
   gy = gy + Kp * ey + Ki * eInt[1];
   gz = gz + Kp * ez + Ki * eInt[2];
- 
+
   // Integrate rate of change of quaternion
   pa = q2;
   pb = q3;
@@ -1282,7 +1282,5 @@ void MahonyQuaternionUpdate(float ax, float ay, float az, float gx, float gy, fl
   q[1] = q2 * norm;
   q[2] = q3 * norm;
   q[3] = q4 * norm;
- 
+
 }
-
-
