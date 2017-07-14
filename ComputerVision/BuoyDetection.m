@@ -4,14 +4,15 @@ clc;
 
 given_radius = 8*49/8;
 given_distance = 60;
-color_choice = 3;       % integer; colors listed below
+color_choice = 2;       % integer; colors listed below
 camdevice = 'usb';   % 'webcam' 'image' 'usb'
 videofeed = true;      % shows results
-satthresh = 80;        % threshold sensitivity for saturation channel (0-255)
-huethresh = 15;        % threshold sensitivity for hue channel (0-255)
+satthresh = 150;        % threshold sensitivity for saturation channel (0-255)
+huethresh = 50;        % threshold sensitivity for hue channel (0-255)
 scale = 4;              % image processing scaling
 display = 1;            % display image scaling
-corners = false;        % display shape corners
+corners = true;        % display shape corners
+global camera;
 
 
 %% Colors
@@ -52,14 +53,14 @@ upperb = colorthresh(1,2,:); % upper bound
 
 switch camdevice
     case 'webcam'
-        camera = cv.VideoCapture();
-        pause(2);
+%         camera = cv.VideoCapture(0);
+%         pause(2);
         img = camera.read();
     case 'image'
         img = which('buoy.png');
         img = cv.imread(img, 'Flags',1);
     otherwise
-        camera = videoinput('tisimaq_r2013',1,'RGB24 (744x480)');
+        camera = videoinput('linuxvideo',1,'RGB24_744x480');
         pause(2);
         img = getsnapshot(camera);
         img = img(31:400,71:654,:);
@@ -100,7 +101,7 @@ while 1
     output = cv.cvtColor(output,'RGB2GRAY'); % grayscale
     output = cv.threshold(output,60,'MaxValue',255,'Type','Binary'); % threshold
     
-    cnts = cv.findContours(output,'Mode','External','Method','Simple'); % detect all contours
+    cnts = cv.findContours(mask,'Mode','External','Method','Simple'); % detect all contours
     
     %% Arrange contours from largest to smallest
     numcnts = numel(cnts);

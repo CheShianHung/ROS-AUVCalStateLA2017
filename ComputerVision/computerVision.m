@@ -1,5 +1,7 @@
 clear;
 clc;
+addpath('~/cv/mexopencv');
+addpath('~/cv/mexopencv/opencv_contrib');
 
 %% Useful commands
 % hostname -I
@@ -58,11 +60,11 @@ while 1
     
     %% Evaluate inputs
     if cviMsg.CameraNumber == 1 && ~frontCam
-        camera = cv.VideoCapture();
+        camera = videoinput('linuxvideo',1,'RGB24_744x480');
         frontCam = true; 
         bottomCam = false;
     elseif cviMsg.CameraNumber == 2 && ~bottomCam
-        camera = cv.VideoCapture();
+        camera = videoinput('linuxvideo',2,'RGB24_744x480');
         frontCam = false;
         bottomCam = true;
     elseif cviMsg.CameraNumber == 0 && (frontCam || bottomCam)

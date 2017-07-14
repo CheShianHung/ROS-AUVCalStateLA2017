@@ -32,11 +32,11 @@ given_distance = cviMsg.GivenDistance;
 color_choice = cviMsg.GivenColor;
 camdevice = 'usb';   % 'webcam' 'image' 'usb'
 videofeed = false;      % shows results
-satthresh = 80;        % threshold sensitivity for saturation channel (0-255)
-huethresh = 15;        % threshold sensitivity for hue channel (0-255)
+satthresh = 150;        % threshold sensitivity for saturation channel (0-255)
+huethresh = 50;        % threshold sensitivity for hue channel (0-255)
 scale = 4;              % image processing scaling
 display = 1;            % display image scaling
-corners = false;        % display shape corners
+corners = true;        % display shape corners
 
 %% Colors
 
@@ -108,11 +108,11 @@ switch cviMsg.Tasknumber
                     & (HSV(:,:,1) < upperb(:,:,1));
             end
             
-            output = uint8(cv.bitwise_and(blur,blur,'Mask',mask)); % apply the mask
-            output = cv.cvtColor(output,'RGB2GRAY'); % grayscale
-            output = cv.threshold(output,60,'MaxValue',255,'Type','Binary'); % threshold
+%             output = uint8(cv.bitwise_and(blur,blur,'Mask',mask)); % apply the mask
+%             output = cv.cvtColor(output,'RGB2GRAY'); % grayscale
+%             output = cv.threshold(output,60,'MaxValue',255,'Type','Binary'); % threshold
             
-            cnts = cv.findContours(output,'Mode','External','Method','Simple'); % detect all contours
+            cnts = cv.findContours(mask,'Mode','External','Method','Simple'); % detect all contours
             
             %% Arrange contours from largest to smallest
             numcnts = numel(cnts);
@@ -130,7 +130,7 @@ switch cviMsg.Tasknumber
                 if ~isnan(A(1,2))
                     %% Calculate the shape of the detected contour
                     
-                    while ~circles && k < 10 && k <= length(A(:,1)) && A(k,1) > 25
+                    while ~circles && k < 5 && k <= length(A(:,1)) && A(k,1) > 10
                         c = A(k,2);             % index of contour with largest area
                         cnt = cnts{c};
                         M = cv.moments(cnt);
@@ -141,11 +141,12 @@ switch cviMsg.Tasknumber
                             0.04*peri,'Closed',1); % approximate the corners of the shape
                         if length(approx) > 3
                             circles = true;
+                            n = n + 1;
                             [~,radius] =  cv.minEnclosingCircle(cnt);
                             if videofeed
                                 if corners
                                     for i = 1:length(approx)
-                                        img = cv.circle(img,4.*approx{i},3,'Color',[0,0,255],...
+                                        img = cv.circle(img,scale.*approx{i},3,'Color',[0,0,255],...
                                             'Thickness',-1); % draws corners of shape
                                     end
                                 end
@@ -156,6 +157,20 @@ switch cviMsg.Tasknumber
                                 img = cv.circle(img,scale.*[cX,cY], scale.*radius, 'Color',[0,0,255], ...
                                     'Thickness',2, 'LineType','AA');        % draw the circle outline
                             end
+                            center = [cX,cY];
+                            delta_h = (origin(2)-center(2))./10;
+                            meandelta_h(n) = delta_h;
+                            fcdMsg.FrontCamVerticalDistance = delta_h;
+                            delta_x = (origin(1)-center(1))./10;
+                            meandelta_x(n) = delta_x;
+                            fcdMsg.FrontCamHorizontalDistance = delta_x;
+                            distance = given_distance*given_radius/radius;
+                            meandistance(n) = distance;
+                            fcdMsg.FrontCamForwardDistance = distance;
+                            theta(n) = atand(double(distance/delta_x));
+                            fprintf('Height:%3.2f Direction:%3.2f Distance:%3.2f\n',delta_h,delta_x,distance); % print the calculated height and amount needed to turn
+                           
+                            
                         end
                         k = k+1;
                     end
@@ -176,21 +191,7 @@ switch cviMsg.Tasknumber
                     img = img(31:400,71:654,:);
             end
             
-            if circles
-                center = [cX,cY];
-                delta_h = (origin(2)-center(2))./10;
-                meandelta_h(n) = delta_h;
-                fcdMsg.FrontCamVerticalDistance = delta_h;
-                delta_x = (origin(1)-center(1))./10;
-                meandelta_x(n) = delta_x;
-                fcdMsg.FrontCamHorizontalDistance = delta_x;
-                distance = given_distance*given_radius/radius;
-                meandistance(n) = distance;
-                fcdMsg.FrontCamForwardDistance = distance;
-                theta(n) = atand(double(distance/delta_x));
-                fprintf('Height:%3.2f Direction:%3.2f Distance:%3.2f\n',delta_h,delta_x,distance); % print the calculated height and amount needed to turn
-                n = n + 1;
-            end
+            
             m = m + 1;
         end
         if n == 30
@@ -202,6 +203,9 @@ switch cviMsg.Tasknumber
             tiMsg.State = true;
         else
             tiMsg.State = false;
+            %             imshow(img);
             fprintf('Not found\n')
         end
+        
+end
 end
