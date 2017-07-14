@@ -182,14 +182,14 @@ int main(int argc, char **argv){
   motorPower = 0;
   motorRunningTime = 0;
 
-  task0_submergeToWater = true;
+  task0_submergeToWater = false;
   task_turnOnMotors = false;
-  task_submergeXft = true;
-  task_emergeXft = true;
+  task_submergeXft = false;
+  task_emergeXft = false;
   task_emergeToTop = true;
-  task_rotateRightXd1 = false;
+  task_rotateRightXd1 = true;
   task_rotateRightXd2 = true;
-  task_rotateLeftXd1 = false;
+  task_rotateLeftXd1 = true;
   task_rotateLeftXd2 = true;
   task_keepRotatingRight = true;
   task_keepRotatingLeft = true;
@@ -210,7 +210,7 @@ int main(int argc, char **argv){
 
 
   // ROS_INFO("Master starts running. Checking each topic...");
-  breakBetweenTasks(180);
+  //breakBetweenTasks(180);
 
   //Checking nodes...
   while(ros::ok() && !allNodesAreReady){
@@ -259,6 +259,7 @@ int main(int argc, char **argv){
   }
 
   resetBoolVariables();
+  breakBetweenTasks(60);
 
   ROS_INFO("Turning on motors...");
   //Task =======================================================================
@@ -278,7 +279,7 @@ int main(int argc, char **argv){
   breakBetweenTasks(5);
 
   //Task =======================================================================
-  heightToMove = 5;
+  heightToMove = 8;
   while(ros::ok() && !task_submergeXft){
     if(!receivedFromHControl){
       hControl.state = 0;
@@ -292,10 +293,10 @@ int main(int argc, char **argv){
   }
 
   resetBoolVariables();
-  // breakBetweenTasks(5);
+  breakBetweenTasks(5);
 
   //Task =======================================================================
-  heightToMove = 5;
+  heightToMove = 7;
   while (ros::ok() && !task_emergeXft){
     if(!receivedFromHControl){
       hControl.state = 2;
@@ -793,7 +794,7 @@ void currentDepthCallback(const std_msgs::Float32& currentDepth){
     }
   }
   else if(!task0_submergeToWater){
-    if(currentDepth.data > 0){
+    if(currentDepth.data > 0.3){
        task0_submergeToWater = true;
        ROS_INFO("Sub is now under water... Ready to get start...");
     }

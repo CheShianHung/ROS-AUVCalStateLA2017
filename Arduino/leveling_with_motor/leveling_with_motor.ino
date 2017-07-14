@@ -12,6 +12,7 @@
 #include <Wire.h>
 #include "MS5837.h"
 #include "SFE_LSM9DS0.h"
+#include "fontv1.h";
 
 #define GyroMeasError PI * (40.0f / 180.0f)       // gyroscope measurement error in rads/s (shown as 3 deg/s)
 #define GyroMeasDrift PI * (0.0f / 180.0f)      // gyroscope measurement drift in rad/s/s (shown as 0.0 deg/s/s)
@@ -23,6 +24,13 @@
 #define LSM9DS0_XM  0x1D
 #define LSM9DS0_G   0x6B
 LSM9DS0 dof(MODE_I2C, LSM9DS0_G, LSM9DS0_XM);
+
+//LCD Display
+#define RST 48
+#define CE  47
+#define DC  46
+#define DIN 45
+#define CLK 44
 
 const byte INT1XM = 53; // INT1XM tells us when accel data is ready
 const byte INT2XM = 51; // INT2XM tells us when mag data is ready
@@ -39,6 +47,9 @@ Servo T7;     //left front
 Servo T8;     //left back
 
 MS5837 sensor;
+
+//variable for LCD 
+char string[8];
 
 //CHANGED PWM_Motors TO PWM_Motors_depth SINCE THERE ARE 2 DIFFERENT PWM CALCULATIONS
 //ONE IS FOR DEPTH AND THE OTHER IS USED FOR MOTORS TO ROTATE TO PROPER NEW LOCATION
@@ -147,6 +158,34 @@ void setup() {
   pinMode(8, OUTPUT); //7 on motor
   pinMode(9, OUTPUT); //8 on motor
 
+  //Pins for LCD Display (NOKIA 5110)
+  pinMode(RST, OUTPUT);
+  pinMode(CE, OUTPUT);
+  pinMode(DC, OUTPUT);
+  pinMode(DIN, OUTPUT);
+  pinMode(CLK, OUTPUT);
+  digitalWrite(RST, LOW);
+  digitalWrite(RST, HIGH);
+
+  //Initialization of LCD 
+  LcdWriteCmd(0x21);                    //LCD extended commands
+  LcdWriteCmd(0xB8);                    //set LCD VOp (contrast)
+  LcdWriteCmd(0x04);                    //set emp coefficent
+  LcdWriteCmd(0x14);                    //LCD bias mode 1:30
+  LcdWriteCmd(0x20);                    //LCD basic commands
+  LcdWriteCmd(0x0C);                    
+
+  for (int i = 0; i < 504; i++) {
+    LcdWriteData(0x00);
+  }
+
+ LcdXY(0,0);
+ LcdWriteString("Roll: ");
+ LcdXY(0,2);
+ LcdWriteString("Pitch: ");
+ LcdXY(0,4);
+ LcdWriteString("Yaw: ");
+
  //Pelican Motors activation of motors (initialization of pins to servo motors)
   T1.attach(2); //right front servo
   T1.writeMicroseconds(1500);
@@ -206,7 +245,7 @@ void setup() {
   keepMovingLeft = false;
 
   //Testing------------------
-  feetDepth_read = 0;
+  //feetDepth_read = 0;
 //yaw = 0;
   positionX = 0;
   positionY = 0;
@@ -214,7 +253,7 @@ void setup() {
   assignedDepth = topDepth;
   currentDepth.data = feetDepth_read;
 
-  assignedYaw = -7.5;
+  assignedYaw = -25.7;
   currentRotation.data = yaw;
 
   hControlStatus.state = 1;
@@ -275,9 +314,18 @@ void loop() {
   yaw   -= 13.8; // Declination at Danville, California is 13 degrees 48 minutes and 47 seconds on 2014-04-04
   roll  *= 180.0f / PI;
 
+  //Set the display outputs for roll, pitch, and yaw
+  LcdXY(40, 0);
+  LcdWriteString(dtostrf(roll, 5, 2, string));
+  LcdXY(40, 2);
+  LcdWriteString(dtostrf(pitch, 5, 2, string));
+  LcdXY(40, 4);
+  LcdWriteString(dtostrf(yaw, 5, 2, string));
+
+
   //Depth
   //Testing----------------------
-  //feetDepth_read =  sensor.depth() * 3.28 + 0.8;                                   //1 meter = 3.28 feet
+  feetDepth_read =  sensor.depth() * 3.28 + 0.4;                                   //1 meter = 3.28 feet
   dutyCycl_depth = (abs(assignedDepth - feetDepth_read)/ 13.0);              //function to get a percentage of assigned height to the feet read
   PWM_Motors_Depth = dutyCycl_depth * 400;                                   //PWM for motors are between 1500 - 1900; difference is 400
 
@@ -289,7 +337,7 @@ void loop() {
   if(subIsReady){
     heightControl();
     rotationControl();
-    movementControl();
+    //movementControl();
   }
 
   //Update and publish current data to master
@@ -579,14 +627,15 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
 //Going upward
 void goingUpward(){
 
-  float mp = 5;
-  int basePower = 0;
-  int levelPower = (400 - PWM_Motors_Depth) / 45 * mp;
-  int reversedLevelPower = (PWM_Motors_Depth / 45) * (-1) * mp;
+  float mp = 3.5;
+  int depthPower = PWM_Motors_Depth * 2;
+  int levelPower = (400 - depthPower) / 45 * mp;
+  //int reversedLevelPower = (PWM_Motors_Depth / 45) * (-1) * mp;
+  int reversedLevelPower = -levelPower / 2;
 
   for(i = 0; (2 * i) < 90; i++){
-    float t1 = PWM_Motors_Depth + i * levelPower;
-    float t2 = PWM_Motors_Depth + i * reversedLevelPower;
+    float t1 = depthPower + i * levelPower;
+    float t2 = depthPower + i * reversedLevelPower;
     if(t1 > 400) t1 = 400;
     if(t2 < -200) t2 = -200;
     
@@ -635,18 +684,14 @@ void goingDownward(){
 
   float mp = 5;
   PWM_Motors_Depth = -PWM_Motors_Depth;
-  int basePower = 0;
-  int levelPower = ((400 + PWM_Motors_Depth) / 45) * (-1) * mp;
-  int reversedLevelPower = ((-1) * PWM_Motors_Depth) / 45 * mp;
-
-//  if(levelPower < -400)
-//    levelPower = -400;
-//  if(reversedLevelPower > 0)
-//    reversedLevelPower = 0;
+  int depthPower = PWM_Motors_Depth * 2;
+  int levelPower = ((400 + depthPower) / 45) * (-1) * mp;
+  //int reversedLevelPower = ((-1) * PWM_Motors_Depth) / 45 * mp;
+  int reversedLevelPower = -levelPower / 2;
 
   for (i = 0; (2 * i) < 90; i++){ //loop will start from 0 degrees -> 90 degrees
-    float t1 = PWM_Motors_Depth + i * levelPower;
-    float t2 = PWM_Motors_Depth + i * reversedLevelPower;
+    float t1 = depthPower + i * levelPower;
+    float t2 = depthPower + i * reversedLevelPower;
     if(t1 < -400) t1 = 400;
     if(t2 > 200) t2 = 200;
     //rolled left (positive value)
@@ -697,7 +742,7 @@ void heightControl(){
     goingDownward();
 
     //Testing--------------------------
-    feetDepth_read += 0.01;
+    //feetDepth_read += 0.01;
 
   }
   //Going up
@@ -705,7 +750,7 @@ void heightControl(){
     goingUpward();
 
     //Testing---------------------------
-    feetDepth_read -= 0.01;
+    //feetDepth_read -= 0.01;
 
   }
   //Reach the height
@@ -1137,6 +1182,38 @@ void initializeIMU(){
 
 }
 
+void LcdWriteString(char *characters){
+  while(*characters) LcdWriteCharacter(*characters++);
+}
+
+void LcdWriteCharacter(char character){
+  for (int i = 0; i < 5; i++) 
+  {
+    LcdWriteData(ASCII[character - 0x20][i]);
+  }
+  LcdWriteData(0x00);
+  }
+
+void LcdWriteData(byte dat)
+{
+  digitalWrite(DC, HIGH);
+  digitalWrite(CE, LOW);
+  shiftOut(DIN, CLK, MSBFIRST, dat);
+  digitalWrite(CE, HIGH);
+}
+
+void LcdWriteCmd(byte cmd)
+{
+  digitalWrite(DC, LOW);                 //DC pin is low for commands
+  digitalWrite(CE, LOW);                                
+  shiftOut(DIN, CLK, MSBFIRST, cmd);     //transmit serial data
+  digitalWrite(CE, HIGH);
+}
+
+void LcdXY(int x, int y){
+  LcdWriteCmd(0x80 | x);
+  LcdWriteCmd(0x40 | y);
+}
 void MahonyQuaternionUpdate(float ax, float ay, float az, float gx, float gy, float gz, float mx, float my, float mz){
 
   float q1 = q[0], q2 = q[1], q3 = q[2], q4 = q[3];   // short name local variable for readability
