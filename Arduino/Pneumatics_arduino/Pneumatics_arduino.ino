@@ -24,8 +24,8 @@ void setup (){
   pinMode(9,OUTPUT);
 
   pControlNum = 0;
-  pControlTime = 0;
-  pControlTimer = 1;
+  pControlTime = 1;
+  pControlTimer = 0;
   pControlIsRunning = false;
   
   pControlStatus.data = 0;
