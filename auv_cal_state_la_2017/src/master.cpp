@@ -59,7 +59,7 @@ auv_cal_state_la_2017::CVInfo cvInfo;
 //Subscriber callback functions
 void currentDepthCallback(const std_msgs::Float32& currentDepth);
 void currentRotationCallback(const std_msgs::Float32& currentRotation);
-void pControlStatusCallback(const std_msgs::Int32& pc);
+void pControlStatusCallback(const std_msgs::Int32 pc);
 void hControlStatusCallback(const auv_cal_state_la_2017::HControl hc);
 void rControlStatusCallback(const auv_cal_state_la_2017::RControl rc);
 void mControlStatusCallback(const auv_cal_state_la_2017::MControl mc);
@@ -72,6 +72,7 @@ void checkMotorNode();
 void checkCVNode();
 void settingCVInfo(int cameraNum, int taskNum, int givenColor, int givenShape, float givenFloat, float givenDistance);
 void resetBoolVariables();
+void breakBetweenTasks(int seconds);
 
 //Regular variables
 const float angleError = 5.0;
@@ -144,7 +145,7 @@ int main(int argc, char **argv){
   ros::NodeHandle node;
   ros::Subscriber currentDepthSubscriber = node.subscribe("current_depth", 100, currentDepthCallback);
   ros::Subscriber currentRotationSubscriber = node.subscribe("current_rotation", 100, currentRotationCallback);
-  ros::Subscriber pControlStatusSubscriber = node.subscribe("pneumatics_control_status", 100, pControlStatusCallback);
+  ros::Subscriber pControlStatusSubscriber = node.subscribe("penumatics_control_status", 100, pControlStatusCallback);
   ros::Subscriber hControlStatusSubscriber = node.subscribe("height_control_status", 100, hControlStatusCallback);
   ros::Subscriber rControlStatusSubscriber = node.subscribe("rotation_control_status", 100, rControlStatusCallback);
   ros::Subscriber mControlStatusSubscriber = node.subscribe("movement_control_status", 100, mControlStatusCallback);
@@ -182,20 +183,20 @@ int main(int argc, char **argv){
   motorRunningTime = 0;
 
   task0_submergeToWater = true;
-  task_turnOnMotors = true;
+  task_turnOnMotors = false;
   task_submergeXft = true;
   task_emergeXft = true;
   task_emergeToTop = true;
-  task_rotateRightXd1 = true;
+  task_rotateRightXd1 = false;
   task_rotateRightXd2 = true;
-  task_rotateLeftXd1 = true;
+  task_rotateLeftXd1 = false;
   task_rotateLeftXd2 = true;
   task_keepRotatingRight = true;
   task_keepRotatingLeft = true;
   task_mode1Movement = true;
   task_mode5Movement1 = true;
   task_mode5Movement2 = true;
-  task_pneumaticsControl = false;
+  task_pneumaticsControl = true;
 
   task_square_submergeXft = true;
   task_square_mode5Movement1 = true;
@@ -209,6 +210,7 @@ int main(int argc, char **argv){
 
 
   // ROS_INFO("Master starts running. Checking each topic...");
+  breakBetweenTasks(180);
 
   //Checking nodes...
   while(ros::ok() && !allNodesAreReady){
@@ -273,9 +275,10 @@ int main(int argc, char **argv){
   }
 
   resetBoolVariables();
+  breakBetweenTasks(5);
 
   //Task =======================================================================
-  heightToMove = 8;
+  heightToMove = 5;
   while(ros::ok() && !task_submergeXft){
     if(!receivedFromHControl){
       hControl.state = 0;
@@ -289,6 +292,7 @@ int main(int argc, char **argv){
   }
 
   resetBoolVariables();
+  // breakBetweenTasks(5);
 
   //Task =======================================================================
   heightToMove = 5;
@@ -336,6 +340,7 @@ int main(int argc, char **argv){
   }
 
   resetBoolVariables();
+  breakBetweenTasks(5);
 
   //Task =======================================================================
   angleToTurn = 179.9;
@@ -368,6 +373,7 @@ int main(int argc, char **argv){
   }
 
   resetBoolVariables();
+  breakBetweenTasks(5);
 
   //Task =======================================================================
   angleToTurn = 179.9;
@@ -753,6 +759,17 @@ void settingCVInfo(int cameraNum, int taskNum, int givenColor, int givenShape, f
 
 
 
+void breakBetweenTasks(int seconds){
+  float t = 0;
+  ros::Rate rate(10);
+  while(ros::ok() && t <= seconds){
+    t += 0.1;
+    rate.sleep();
+  }
+}
+
+
+
 void resetBoolVariables(){
   receivedFromPControl = false;
   receivedFromRControl = false;
@@ -950,11 +967,11 @@ void pControlStatusCallback(const std_msgs::Int32 pc){
     if(!receivedFromPControl){
       ROS_INFO("Sending command to pneumatics_control - trigger #x");
     }
-    if(!receivedFromPControl && pc.data = pneumaticsNum){
+    if(!receivedFromPControl && pc.data == pneumaticsNum){
       receivedFromHControl = true;
       ROS_INFO("pneumatics_control message received");
     }
-    if(receivedFromPControl && pc.data = 0){
+    if(receivedFromPControl && pc.data == 0){
       receivedFromPControl = false;
       task_pneumaticsControl = true;
       ROS_INFO("Pneumatics #x triggered successfully.\n");
