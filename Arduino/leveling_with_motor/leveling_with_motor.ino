@@ -337,7 +337,7 @@ void loop() {
   if(subIsReady){
     heightControl();
     rotationControl();
-    //movementControl();
+    movementControl();
   }
 
   //Update and publish current data to master
@@ -396,7 +396,7 @@ void hControlCallback(const auv_cal_state_la_2017::HControl& hControl) {
     if(!subIsReady){
       subIsReady = true;
       nh.loginfo("Motors unlocked.");
-      assignedDepth = 1;
+      assignedDepth = feetDepth_read;
     }
   }
   hControlStatus.state = hControl.state;
@@ -1087,7 +1087,7 @@ void bottomCamDistanceCallback(const auv_cal_state_la_2017::BottomCamDistance& b
 //    T7.writeMicroseconds(1500 + PWM_Motors);
 //  }
 void rotateLeftDynamically(){
-  float rotatePower = PWM_Motors_orient * 2;
+  float rotatePower = PWM_Motors_orient * 2.5;
   if(rotatePower > 400) rotatePower = 400;
   //Rotate left with PWM_Motors_orient
   T5.writeMicroseconds(1500 + rotatePower);
@@ -1099,7 +1099,7 @@ void rotateLeftDynamically(){
 }
 
 void rotateRightDynamically(){
-  float rotatePower = PWM_Motors_orient * 2;
+  float rotatePower = PWM_Motors_orient * 2.5;
   if(rotatePower > 400) rotatePower = 400;
   //Rotate right with PWM_Motors_orient
   T5.writeMicroseconds(1500 - rotatePower);

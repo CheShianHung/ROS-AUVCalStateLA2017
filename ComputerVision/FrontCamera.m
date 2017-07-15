@@ -195,15 +195,15 @@ switch cviMsg.Tasknumber
             m = m + 1;
         end
         if n == 30
-            tiMsg.Direction = mean(meandelta_x(15:end));
+            tiMsg.Angle = mean(meandelta_x(15:end));
             tiMsg.Height = mean(meandelta_h(15:end));
             fcdMsg.FrontCamHorizontalDistance = mean(theta(15:end));
             fcdMsg.FrontCamForwardDistance = mean(meandistance(15:end));
-            fprintf('FOUND\nAVERAGE: Height:%3.2f Direction:%3.2f\n',tiMsg.Height,tiMsg.Direction);
-            tiMsg.State = true;
+            fprintf('FOUND\nAVERAGE: Height:%3.2f Direction:%3.2f\n',tiMsg.Height,tiMsg.Angle);
+            tiMsg.State = 1;
         else
-            tiMsg.State = false;
-            %             imshow(img);
+            tiMsg.State = 0;
+            %imshow(img);
             fprintf('Not found\n')
         end
         
