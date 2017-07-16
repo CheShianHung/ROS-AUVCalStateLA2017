@@ -47,7 +47,7 @@ colors_list = { 'red',[255,0,0];        % 1
     'bouy',[101,240,127]};
 
 %% Tasks
-switch cviMsg.Tasknumber
+switch cviMsg.TaskNumber
     case 1      % Buoy detection
         %% Initialize Color
         color = uint8([]);
@@ -168,7 +168,7 @@ switch cviMsg.Tasknumber
                             meandistance(n) = distance;
                             fcdMsg.FrontCamForwardDistance = distance;
                             theta(n) = atand(double(distance/delta_x));
-                            fprintf('Height:%3.2f Direction:%3.2f Distance:%3.2f\n',delta_h,delta_x,distance); % print the calculated height and amount needed to turn
+                            fprintf('Height:%3.2f Angle:%3.2f Distance:%3.2f\n',delta_h,delta_x,distance); % print the calculated height and amount needed to turn
                            
                             
                         end
@@ -199,7 +199,7 @@ switch cviMsg.Tasknumber
             tiMsg.Height = mean(meandelta_h(15:end));
             fcdMsg.FrontCamHorizontalDistance = mean(theta(15:end));
             fcdMsg.FrontCamForwardDistance = mean(meandistance(15:end));
-            fprintf('FOUND\nAVERAGE: Height:%3.2f Direction:%3.2f\n',tiMsg.Height,tiMsg.Angle);
+            fprintf('FOUND\nAVERAGE: Height:%3.2f Angle:%3.2f\n',tiMsg.Height,tiMsg.Angle);
             tiMsg.State = 1;
         else
             tiMsg.State = 0;

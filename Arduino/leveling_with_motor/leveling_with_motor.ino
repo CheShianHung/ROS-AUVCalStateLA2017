@@ -245,17 +245,17 @@ void setup() {
   keepMovingLeft = false;
 
   //Testing------------------
-  //feetDepth_read = 0;
-  //yaw = 0;
+  feetDepth_read = 0;
+  yaw = 0;
   positionX = 0;
   positionY = 0;
 
   assignedDepth = topDepth;
   currentDepth.data = feetDepth_read;
 
-  assignedYaw = -28.5;
+  //assignedYaw = -28.5;
   //subIsReady = true;
-  //assignedYaw = yaw;
+  assignedYaw = yaw;
   currentRotation.data = yaw;
 
   hControlStatus.state = 1;
@@ -308,12 +308,12 @@ void loop() {
   // Pass gyro rate as rad/s
   MahonyQuaternionUpdate(ax, ay, az, gx*PI/180.0f, gy*PI/180.0f, gz*PI/180.0f, mx, my, mz);
 
-  yaw   = atan2(2.0f * (q[1] * q[2] + q[0] * q[3]), q[0] * q[0] + q[1] * q[1] - q[2] * q[2] - q[3] * q[3]);
+  //yaw   = atan2(2.0f * (q[1] * q[2] + q[0] * q[3]), q[0] * q[0] + q[1] * q[1] - q[2] * q[2] - q[3] * q[3]);
   pitch = -asin(2.0f * (q[1] * q[3] - q[0] * q[2]));
   roll  = atan2(2.0f * (q[0] * q[1] + q[2] * q[3]), q[0] * q[0] - q[1] * q[1] - q[2] * q[2] + q[3] * q[3]);
   pitch *= 180.0f / PI;
-  yaw   *= 180.0f / PI;
-  yaw   -= 13.8; // Declination at Danville, California is 13 degrees 48 minutes and 47 seconds on 2014-04-04
+  //yaw   *= 180.0f / PI;
+  //yaw   -= 13.8; // Declination at Danville, California is 13 degrees 48 minutes and 47 seconds on 2014-04-04
   roll  *= 180.0f / PI;
 
   //Set the display outputs for roll, pitch, and yaw
@@ -327,7 +327,7 @@ void loop() {
 
   //Depth
   //Testing----------------------
-  feetDepth_read =  sensor.depth() * 3.28 + 0.77;                                   //1 meter = 3.28 feet
+  //feetDepth_read =  sensor.depth() * 3.28 + 0.77;                                   //1 meter = 3.28 feet
   dutyCycl_depth = (abs(assignedDepth - feetDepth_read)/ 13.0);              //function to get a percentage of assigned height to the feet read
   PWM_Motors_Depth = dutyCycl_depth * 400;                                   //PWM for motors are between 1500 - 1900; difference is 400
 
@@ -744,7 +744,7 @@ void heightControl(){
     goingDownward();
 
     //Testing--------------------------
-    //feetDepth_read += 0.01;
+    feetDepth_read += 0.01;
 
   }
   //Going up
@@ -752,7 +752,7 @@ void heightControl(){
     goingUpward();
 
     //Testing---------------------------
-    //feetDepth_read -= 0.01;
+    feetDepth_read -= 0.01;
 
   }
   //Reach the height
@@ -1095,8 +1095,8 @@ void rotateLeftDynamically(){
   T5.writeMicroseconds(1500 + rotatePower);
   T7.writeMicroseconds(1500 - rotatePower);
   //Testing----------------------------
-  //yaw += 1;
-  //if(yaw > rotationUpperBound) yaw -= 360;
+  yaw += 1;
+  if(yaw > rotationUpperBound) yaw -= 360;
 
 }
 
@@ -1107,8 +1107,8 @@ void rotateRightDynamically(){
   T5.writeMicroseconds(1500 - rotatePower);
   T7.writeMicroseconds(1500 + rotatePower);
   //Testing----------------------------
-  //yaw -= 1;
-  //if(yaw < rotationLowerBound) yaw +=360;
+  yaw -= 1;
+  if(yaw < rotationLowerBound) yaw +=360;
 
 }
 

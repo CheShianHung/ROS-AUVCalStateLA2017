@@ -139,7 +139,7 @@ function FrontCamera(msg)
     'bouy',[101,240,127]};
 
     %% Tasks
-    switch msg.Tasknumber
+    switch msg.TaskNumber
         case 1      % Buoy detection
             %% Initialize Color
             color = uint8([]);
@@ -255,7 +255,7 @@ function FrontCamera(msg)
                                 meandistance(n) = distance;
                                 fcdMsg.FrontCamForwardDistance = distance;
                                 theta(n) = atand(double(distance/delta_x));
-                                fprintf('Height:%3.2f Direction:%3.2f Distance:%3.2f\n',delta_h,delta_x,distance); % print the calculated height and amount needed to turn
+                                fprintf('Height:%3.2f Angle:%3.2f Distance:%3.2f\n',delta_h,delta_x,distance); % print the calculated height and amount needed to turn
                             end
                             k = k+1;
                         end
@@ -277,13 +277,16 @@ function FrontCamera(msg)
                 end
                 m = m + 1;
             end
-            if n == 30
+            if n == 30 || found
+                if ~found
+                    found = true;
+                end
+                tiMsg.State = 1;
                 tiMsg.Angle = mean(meandelta_x(15:end));
                 tiMsg.Height = mean(meandelta_h(15:end));
-                fcdMsg.FrontCamHorizontalDistance = mean(theta(15:end));
-                fcdMsg.FrontCamForwardDistance = mean(meandistance(15:end));
-                fprintf('FOUND\nAVERAGE: Height:%3.2f Direction:%3.2f\n',tiMsg.Angle,tiMsg.Direction);
-                tiMsg.State = 1;
+                %fcdMsg.FrontCamHorizontalDistance = mean(theta(15:end));
+                %fcdMsg.FrontCamForwardDistance = mean(meandistance(15:end));
+                fprintf('FOUND\nAVERAGE: Height:%3.2f Angle:%3.2f\n',tiMsg.Angle,tiMsg.Direction);
             else
                 tiMsg.State = 0;
                 %imshow(img);
