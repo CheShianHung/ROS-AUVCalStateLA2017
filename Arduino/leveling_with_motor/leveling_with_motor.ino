@@ -246,14 +246,16 @@ void setup() {
 
   //Testing------------------
   //feetDepth_read = 0;
-//yaw = 0;
+  //yaw = 0;
   positionX = 0;
   positionY = 0;
 
   assignedDepth = topDepth;
   currentDepth.data = feetDepth_read;
 
-  assignedYaw = -25.7;
+  assignedYaw = -28.5;
+  //subIsReady = true;
+  //assignedYaw = yaw;
   currentRotation.data = yaw;
 
   hControlStatus.state = 1;
@@ -325,7 +327,7 @@ void loop() {
 
   //Depth
   //Testing----------------------
-  feetDepth_read =  sensor.depth() * 3.28 + 0.4;                                   //1 meter = 3.28 feet
+  feetDepth_read =  sensor.depth() * 3.28 + 0.77;                                   //1 meter = 3.28 feet
   dutyCycl_depth = (abs(assignedDepth - feetDepth_read)/ 13.0);              //function to get a percentage of assigned height to the feet read
   PWM_Motors_Depth = dutyCycl_depth * 400;                                   //PWM for motors are between 1500 - 1900; difference is 400
 
@@ -337,7 +339,7 @@ void loop() {
   if(subIsReady){
     heightControl();
     rotationControl();
-    movementControl();
+    //movementControl();
   }
 
   //Update and publish current data to master
@@ -1087,7 +1089,7 @@ void bottomCamDistanceCallback(const auv_cal_state_la_2017::BottomCamDistance& b
 //    T7.writeMicroseconds(1500 + PWM_Motors);
 //  }
 void rotateLeftDynamically(){
-  float rotatePower = PWM_Motors_orient * 2.5;
+  float rotatePower = PWM_Motors_orient * 1.25;
   if(rotatePower > 400) rotatePower = 400;
   //Rotate left with PWM_Motors_orient
   T5.writeMicroseconds(1500 + rotatePower);
@@ -1099,7 +1101,7 @@ void rotateLeftDynamically(){
 }
 
 void rotateRightDynamically(){
-  float rotatePower = PWM_Motors_orient * 2.5;
+  float rotatePower = PWM_Motors_orient * 1.25;
   if(rotatePower > 400) rotatePower = 400;
   //Rotate right with PWM_Motors_orient
   T5.writeMicroseconds(1500 - rotatePower);

@@ -119,8 +119,10 @@ bool task_emergeXft;
 bool task_emergeToTop;
 bool task_rotateRightXd1;
 bool task_rotateRightXd2;
+bool task_rotateRightXd3;
 bool task_rotateLeftXd1;
 bool task_rotateLeftXd2;
+bool task_rotateLeftXd3;
 bool task_keepRotatingRight;
 bool task_keepRotatingLeft;
 bool task_mode1Movement;
@@ -185,12 +187,14 @@ int main(int argc, char **argv){
   task0_submergeToWater = false;
   task_turnOnMotors = false;
   task_submergeXft = false;
-  task_emergeXft = false;
+  task_emergeXft = true;
   task_emergeToTop = true;
-  task_rotateRightXd1 = true;
+  task_rotateRightXd1 = false;
   task_rotateRightXd2 = true;
+  task_rotateRightXd3 = true;
   task_rotateLeftXd1 = true;
   task_rotateLeftXd2 = true;
+  task_rotateLeftXd3 = true;
   task_keepRotatingRight = true;
   task_keepRotatingLeft = true;
   task_mode1Movement = true;
@@ -259,7 +263,7 @@ int main(int argc, char **argv){
   }
 
   resetBoolVariables();
-  breakBetweenTasks(60);
+  // breakBetweenTasks(60);
 
   ROS_INFO("Turning on motors...");
   //Task =======================================================================
@@ -276,7 +280,7 @@ int main(int argc, char **argv){
   }
 
   resetBoolVariables();
-  breakBetweenTasks(5);
+  breakBetweenTasks(30);
 
   //Task =======================================================================
   heightToMove = 8;
@@ -293,7 +297,7 @@ int main(int argc, char **argv){
   }
 
   resetBoolVariables();
-  breakBetweenTasks(5);
+  breakBetweenTasks(30);
 
   //Task =======================================================================
   heightToMove = 7;
@@ -327,7 +331,7 @@ int main(int argc, char **argv){
   resetBoolVariables();
 
   //Task =======================================================================
-  angleToTurn = 179.9;
+  angleToTurn = 90;
   while (ros::ok() && !task_rotateRightXd1){
     if(!receivedFromRControl){
       rControl.state = 2;
@@ -341,10 +345,10 @@ int main(int argc, char **argv){
   }
 
   resetBoolVariables();
-  breakBetweenTasks(5);
+  // breakBetweenTasks(30);
 
   //Task =======================================================================
-  angleToTurn = 179.9;
+  angleToTurn = 90;
   while (ros::ok() && !task_rotateRightXd2){
     if(!receivedFromRControl){
       rControl.state = 2;
@@ -358,9 +362,27 @@ int main(int argc, char **argv){
   }
 
   resetBoolVariables();
+  // breakBetweenTasks(30);
 
   //Task =======================================================================
-  angleToTurn = 179.9;
+  angleToTurn = 180;
+  while (ros::ok() && !task_rotateRightXd3){
+    if(!receivedFromRControl){
+      rControl.state = 2;
+      rControl.rotation = angleToTurn;
+      rControlPublisher.publish(rControl);
+    }
+    settingCVInfo(0,0,0,0,0,0);
+    cvInfoPublisher.publish(cvInfo);
+    ros::spinOnce();
+    loop_rate.sleep();
+  }
+
+  resetBoolVariables();
+  // breakBetweenTasks(30);
+
+  //Task =======================================================================
+  angleToTurn = 180;
   while (ros::ok() && !task_rotateLeftXd1){
     if(!receivedFromRControl){
       rControl.state = 0;
@@ -374,10 +396,10 @@ int main(int argc, char **argv){
   }
 
   resetBoolVariables();
-  breakBetweenTasks(5);
+  // breakBetweenTasks(60);
 
   //Task =======================================================================
-  angleToTurn = 179.9;
+  angleToTurn = 90;
   while (ros::ok() && !task_rotateLeftXd2){
     if(!receivedFromRControl){
       rControl.state = 0;
@@ -391,6 +413,24 @@ int main(int argc, char **argv){
   }
 
   resetBoolVariables();
+  // breakBetweenTasks(30);
+
+  //Task =======================================================================
+  angleToTurn = 180;
+  while (ros::ok() && !task_rotateLeftXd3){
+    if(!receivedFromRControl){
+      rControl.state = 0;
+      rControl.rotation = angleToTurn;
+      rControlPublisher.publish(rControl);
+    }
+    settingCVInfo(0,0,0,0,0,0);
+    cvInfoPublisher.publish(cvInfo);
+    ros::spinOnce();
+    loop_rate.sleep();
+  }
+
+  resetBoolVariables();
+  // breakBetweenTasks(30);
 
   //Task =======================================================================
   while (ros::ok() && !task_keepRotatingRight){
@@ -805,8 +845,10 @@ void currentDepthCallback(const std_msgs::Float32& currentDepth){
   else if(!task_emergeToTop){}
   else if(!task_rotateRightXd1){}
   else if(!task_rotateRightXd2){}
+  else if(!task_rotateRightXd3){}
   else if(!task_rotateLeftXd1){}
   else if(!task_rotateLeftXd2){}
+  else if(!task_rotateLeftXd3){}
   else if(!task_keepRotatingRight){}
   else if(!task_keepRotatingLeft){}
   else if(!task_mode1Movement){}
@@ -840,8 +882,10 @@ void currentRotationCallback(const std_msgs::Float32& currentRotation){
   else if(!task_emergeToTop){}
   else if(!task_rotateRightXd1){}
   else if(!task_rotateRightXd2){}
+  else if(!task_rotateRightXd3){}
   else if(!task_rotateLeftXd1){}
   else if(!task_rotateLeftXd2){}
+  else if(!task_rotateLeftXd3){}
   else if(!task_keepRotatingRight){}
   else if(!task_keepRotatingLeft){}
   else if(!task_mode1Movement){}
@@ -880,8 +924,10 @@ void frontCamDistanceCallback(const auv_cal_state_la_2017::FrontCamDistance fcd)
   else if(!task_emergeToTop){}
   else if(!task_rotateRightXd1){}
   else if(!task_rotateRightXd2){}
+  else if(!task_rotateRightXd3){}
   else if(!task_rotateLeftXd1){}
   else if(!task_rotateLeftXd2){}
+  else if(!task_rotateLeftXd3){}
   else if(!task_keepRotatingRight){}
   else if(!task_keepRotatingLeft){}
   else if(!task_mode1Movement){}
@@ -920,8 +966,10 @@ void bottomCamDistanceCallback(const auv_cal_state_la_2017::BottomCamDistance bc
   else if(!task_emergeToTop){}
   else if(!task_rotateRightXd1){}
   else if(!task_rotateRightXd2){}
+  else if(!task_rotateRightXd3){}
   else if(!task_rotateLeftXd1){}
   else if(!task_rotateLeftXd2){}
+  else if(!task_rotateLeftXd3){}
   else if(!task_keepRotatingRight){}
   else if(!task_keepRotatingLeft){}
   else if(!task_mode1Movement){}
@@ -957,8 +1005,10 @@ void pControlStatusCallback(const std_msgs::Int32 pc){
   else if(!task_emergeToTop){}
   else if(!task_rotateRightXd1){}
   else if(!task_rotateRightXd2){}
+  else if(!task_rotateRightXd3){}
   else if(!task_rotateLeftXd1){}
   else if(!task_rotateLeftXd2){}
+  else if(!task_rotateLeftXd3){}
   else if(!task_keepRotatingRight){}
   else if(!task_keepRotatingLeft){}
   else if(!task_mode1Movement){}
@@ -1063,8 +1113,10 @@ void hControlStatusCallback(const auv_cal_state_la_2017::HControl hc){
   }
   else if(!task_rotateRightXd1){}
   else if(!task_rotateRightXd2){}
+  else if(!task_rotateRightXd3){}
   else if(!task_rotateLeftXd1){}
   else if(!task_rotateLeftXd2){}
+  else if(!task_rotateLeftXd3){}
   else if(!task_keepRotatingRight){}
   else if(!task_keepRotatingLeft){}
   else if(!task_mode1Movement){}
@@ -1166,6 +1218,20 @@ void rControlStatusCallback(const auv_cal_state_la_2017::RControl rc){
       ROS_INFO("Rotating completed.\n");
     }
   }
+  else if(!task_rotateRightXd3){
+    if(!receivedFromRControl){
+      ROS_INFO("Sending commend to rotation_control - rotate right x degrees");
+    }
+    if(!receivedFromRControl && rc.state == 2 && rc.rotation == angleToTurn){
+      receivedFromRControl = true;
+      ROS_INFO("rotation_control message received - rotating...");
+    }
+    if(receivedFromRControl && rc.state == 1 && rc.rotation == 0){
+      receivedFromRControl = false;
+      task_rotateRightXd3 = true;
+      ROS_INFO("Rotating completed.\n");
+    }
+  }
   else if(!task_rotateLeftXd1){
     if(!receivedFromRControl){
       ROS_INFO("Sending commend to rotation_control - rotate left x degrees");
@@ -1191,6 +1257,20 @@ void rControlStatusCallback(const auv_cal_state_la_2017::RControl rc){
     if(receivedFromRControl && rc.state == 1 && rc.rotation == 0){
       receivedFromRControl = false;
       task_rotateLeftXd2 = true;
+      ROS_INFO("Rotating completed.\n");
+    }
+  }
+  else if(!task_rotateLeftXd3){
+    if(!receivedFromRControl){
+      ROS_INFO("Sending commend to rotation_control - rotate left x degrees");
+    }
+    if(!receivedFromRControl && rc.state == 0 && rc.rotation == angleToTurn){
+      receivedFromRControl = true;
+      ROS_INFO("rotation_control message received - rotating...");
+    }
+    if(receivedFromRControl && rc.state == 1 && rc.rotation == 0){
+      receivedFromRControl = false;
+      task_rotateLeftXd3 = true;
       ROS_INFO("Rotating completed.\n");
     }
   }
@@ -1284,8 +1364,10 @@ void mControlStatusCallback(const auv_cal_state_la_2017::MControl mc){
   else if(!task_emergeToTop){}
   else if(!task_rotateRightXd1){}
   else if(!task_rotateRightXd2){}
+  else if(!task_rotateRightXd3){}
   else if(!task_rotateLeftXd1){}
   else if(!task_rotateLeftXd2){}
+  else if(!task_rotateLeftXd3){}
   else if(!task_keepRotatingRight){}
   else if(!task_keepRotatingLeft){}
   else if(!task_mode1Movement){
@@ -1413,8 +1495,10 @@ void targetInfoCallback(const auv_cal_state_la_2017::TargetInfo ti){
   else if(!task_emergeToTop){}
   else if(!task_rotateRightXd1){}
   else if(!task_rotateRightXd2){}
+  else if(!task_rotateRightXd3){}
   else if(!task_rotateLeftXd1){}
   else if(!task_rotateLeftXd2){}
+  else if(!task_rotateLeftXd3){}
   else if(!task_mode1Movement){}
   else if(!task_mode5Movement1){}
   else if(!task_mode5Movement2){}
