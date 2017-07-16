@@ -60,7 +60,7 @@ while 1
 
     %% Evaluate inputs
     if cviMsg.CameraNumber == 1 && ~frontCam
-        camera = videoinput('linuxvideo',1,'RGB24_744x480');
+        camera = videoinput('linuxvideo',2,'RGB24_744x480');
         frontCam = true;
         bottomCam = false;
     elseif cviMsg.CameraNumber == 2 && ~bottomCam
@@ -254,6 +254,8 @@ function FrontCamera(msg)
                                 distance = given_distance*given_radius/radius;
                                 meandistance(n) = distance;
                                 fcdMsg.FrontCamForwardDistance = distance;
+                                distance = double(distance);
+                                delta_x = double(distance);
                                 theta(n) = atand(double(distance/delta_x));
                                 fprintf('Height:%3.2f Angle:%3.2f Distance:%3.2f\n',delta_h,delta_x,distance); % print the calculated height and amount needed to turn
                             end

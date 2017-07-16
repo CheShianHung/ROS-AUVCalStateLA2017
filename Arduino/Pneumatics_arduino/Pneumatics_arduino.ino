@@ -70,7 +70,7 @@ void pControlCallback(const std_msgs::Int32& pControl){
     else
       nh.loginfo("pneumatics_control is still running. Command abort.");
   }
-  pControlStatus.data = 0;
+  pControlStatus.data = pControl.data;
   pControlPublisher.publish(&pControlStatus);
   
 }
@@ -87,6 +87,7 @@ void pneumaticsControl(){
     digitalWrite(pControlNum + 3, HIGH);
     pControlTimer += 0.01;
     if(pControlTimer >= pControlTime){
+      nh.loginfo("Mission completed.\n");
       pControlIsRunning = false;
       digitalWrite(pControlNum + 3, LOW);
     }
