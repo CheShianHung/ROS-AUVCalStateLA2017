@@ -125,6 +125,7 @@ bool task_rotateLeftXd2;
 bool task_rotateLeftXd3;
 bool task_keepRotatingRight;
 bool task_keepRotatingLeft;
+bool task_submergeXft2;
 bool task_mode1Movement;
 bool task_mode5Movement1;
 bool task_mode5Movement2;
@@ -186,24 +187,25 @@ int main(int argc, char **argv){
   motorPower = 0;
   motorRunningTime = 0;
 
-  task0_submergeToWater = true;
-  task_turnOnMotors = true;
+  task0_submergeToWater = false;
+  task_turnOnMotors = false;
   task_submergeXft = true;
   task_emergeXft = true;
   task_emergeToTop = true;
   task_rotateRightXd1 = true;
   task_rotateRightXd2 = true;
   task_rotateRightXd3 = true;
-  task_rotateLeftXd1 = true;
+  task_rotateLeftXd1 = false;
   task_rotateLeftXd2 = true;
   task_rotateLeftXd3 = true;
   task_keepRotatingRight = true;
   task_keepRotatingLeft = true;
+  task_submergeXft2 = false;
   task_mode1Movement = true;
-  task_mode5Movement1 = true;
+  task_mode5Movement1 = false;
   task_mode5Movement2 = true;
-  task_pneumaticsControl1 = false;
-  task_pneumaticsControl2 = false;
+  task_pneumaticsControl1 = true;
+  task_pneumaticsControl2 = true;
 
   task_square_submergeXft = true;
   task_square_mode5Movement1 = true;
@@ -284,10 +286,10 @@ int main(int argc, char **argv){
   }
 
   resetBoolVariables();
-  // breakBetweenTasks(30);
+  breakBetweenTasks(15);
 
   //Task =======================================================================
-  heightToMove = 8;
+  heightToMove = 6;
   while(ros::ok() && !task_submergeXft){
     if(!receivedFromHControl){
       hControl.state = 0;
@@ -386,7 +388,7 @@ int main(int argc, char **argv){
   // breakBetweenTasks(30);
 
   //Task =======================================================================
-  angleToTurn = 180;
+  angleToTurn = 90;
   while (ros::ok() && !task_rotateLeftXd1){
     if(!receivedFromRControl){
       rControl.state = 0;
@@ -400,7 +402,7 @@ int main(int argc, char **argv){
   }
 
   resetBoolVariables();
-  // breakBetweenTasks(60);
+  breakBetweenTasks(15);
 
   //Task =======================================================================
   angleToTurn = 90;
@@ -467,6 +469,23 @@ int main(int argc, char **argv){
   resetBoolVariables();
 
   //Task =======================================================================
+  heightToMove = 4;
+  while(ros::ok() && !task_submergeXft2){
+    if(!receivedFromHControl){
+      hControl.state = 0;
+      hControl.depth = heightToMove;
+      hControlPublisher.publish(hControl);
+    }
+    settingCVInfo(0,0,0,0,0,0);
+    cvInfoPublisher.publish(cvInfo);
+    ros::spinOnce();
+    loop_rate.sleep();
+  }
+
+  resetBoolVariables();
+  breakBetweenTasks(60);
+
+  //Task =======================================================================
   motorPower = 100;
   directionToMove = 4;
   while (ros::ok() && !task_mode1Movement){
@@ -487,8 +506,8 @@ int main(int argc, char **argv){
   resetBoolVariables();
 
   //Task =======================================================================
-  motorPower = 100;
-  motorRunningTime = 8;
+  motorPower = 150;
+  motorRunningTime = 15;
   directionToMove = 1;
   while (ros::ok() && !task_mode5Movement1){
     if(!receivedFromMControl){
@@ -509,7 +528,7 @@ int main(int argc, char **argv){
 
   //Task =======================================================================
   motorPower = 100;
-  motorRunningTime = 3;
+  motorRunningTime = 5;
   directionToMove = 3;
   while (ros::ok() && !task_mode5Movement2){
     if(!receivedFromMControl){
@@ -542,7 +561,7 @@ int main(int argc, char **argv){
   }
 
   resetBoolVariables();
-  breakBetweenTasks(5);
+  //breakBetweenTasks(5);
 
   //Task =======================================================================
   pneumaticsNum = 3;
@@ -887,6 +906,7 @@ void currentDepthCallback(const std_msgs::Float32& currentDepth){
   else if(!task_rotateLeftXd3){}
   else if(!task_keepRotatingRight){}
   else if(!task_keepRotatingLeft){}
+  else if(!task_submergeXft2){}
   else if(!task_mode1Movement){}
   else if(!task_mode5Movement1){}
   else if(!task_mode5Movement2){}
@@ -926,6 +946,7 @@ void currentRotationCallback(const std_msgs::Float32& currentRotation){
   else if(!task_rotateLeftXd3){}
   else if(!task_keepRotatingRight){}
   else if(!task_keepRotatingLeft){}
+  else if(!task_submergeXft2){}
   else if(!task_mode1Movement){}
   else if(!task_mode5Movement1){}
   else if(!task_mode5Movement2){}
@@ -970,6 +991,7 @@ void frontCamDistanceCallback(const auv_cal_state_la_2017::FrontCamDistance fcd)
   else if(!task_rotateLeftXd3){}
   else if(!task_keepRotatingRight){}
   else if(!task_keepRotatingLeft){}
+  else if(!task_submergeXft2){}
   else if(!task_mode1Movement){}
   else if(!task_mode5Movement1){}
   else if(!task_mode5Movement2){}
@@ -1014,6 +1036,7 @@ void bottomCamDistanceCallback(const auv_cal_state_la_2017::BottomCamDistance bc
   else if(!task_rotateLeftXd3){}
   else if(!task_keepRotatingRight){}
   else if(!task_keepRotatingLeft){}
+  else if(!task_submergeXft2){}
   else if(!task_mode1Movement){}
   else if(!task_mode5Movement1){}
   else if(!task_mode5Movement2){}
@@ -1055,6 +1078,7 @@ void pControlStatusCallback(const std_msgs::Int32 pc){
   else if(!task_rotateLeftXd3){}
   else if(!task_keepRotatingRight){}
   else if(!task_keepRotatingLeft){}
+  else if(!task_submergeXft2){}
   else if(!task_mode1Movement){}
   else if(!task_mode5Movement1){}
   else if(!task_mode5Movement2){}
@@ -1178,6 +1202,20 @@ void hControlStatusCallback(const auv_cal_state_la_2017::HControl hc){
   else if(!task_rotateLeftXd3){}
   else if(!task_keepRotatingRight){}
   else if(!task_keepRotatingLeft){}
+  else if(!task_submergeXft2){
+    if(!receivedFromHControl){
+      ROS_INFO("Sending command to height_control - submerge x ft");
+    }
+    if(!receivedFromHControl && hc.state == 0 && hc.depth == heightToMove){
+      receivedFromHControl = true;
+      ROS_INFO("height_control message received - submerging...");
+    }
+    if(receivedFromHControl && hc.state == 1 && hc.depth == 0){
+      receivedFromHControl = false;
+      task_submergeXft2 = true;
+      ROS_INFO("Submerging completed.\n");
+    }
+  }
   else if(!task_mode1Movement){}
   else if(!task_mode5Movement1){}
   else if(!task_mode5Movement2){}
@@ -1365,6 +1403,7 @@ void rControlStatusCallback(const auv_cal_state_la_2017::RControl rc){
       ROS_INFO("Rotating completed.\n");
     }
   }
+  else if(!task_submergeXft2){}
   else if(!task_mode1Movement){}
   else if(!task_mode5Movement1){}
   else if(!task_mode5Movement2){}
@@ -1433,6 +1472,7 @@ void mControlStatusCallback(const auv_cal_state_la_2017::MControl mc){
   else if(!task_rotateLeftXd3){}
   else if(!task_keepRotatingRight){}
   else if(!task_keepRotatingLeft){}
+  else if(!task_submergeXft2){}
   else if(!task_mode1Movement){
     if(!receivedFromMControl){
       ROS_INFO("Sending command to movememt_control - keep moving with fixed power");
@@ -1564,6 +1604,7 @@ void targetInfoCallback(const auv_cal_state_la_2017::TargetInfo ti){
   else if(!task_rotateLeftXd1){}
   else if(!task_rotateLeftXd2){}
   else if(!task_rotateLeftXd3){}
+  else if(!task_submergeXft2){}
   else if(!task_mode1Movement){}
   else if(!task_mode5Movement1){}
   else if(!task_mode5Movement2){}

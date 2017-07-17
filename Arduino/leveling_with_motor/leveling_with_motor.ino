@@ -245,17 +245,18 @@ void setup() {
   keepMovingLeft = false;
 
   //Testing------------------
-  feetDepth_read = 0;
-  yaw = 0;
+  //feetDepth_read = 0;
+  //yaw = 0;
   positionX = 0;
   positionY = 0;
 
   assignedDepth = topDepth;
   currentDepth.data = feetDepth_read;
 
-  //assignedYaw = -28.5;
+  //assignedDepth = -0.1;
+  assignedYaw = -104.3;
   //subIsReady = true;
-  assignedYaw = yaw;
+  //assignedYaw = yaw;
   currentRotation.data = yaw;
 
   hControlStatus.state = 1;
@@ -308,12 +309,12 @@ void loop() {
   // Pass gyro rate as rad/s
   MahonyQuaternionUpdate(ax, ay, az, gx*PI/180.0f, gy*PI/180.0f, gz*PI/180.0f, mx, my, mz);
 
-  //yaw   = atan2(2.0f * (q[1] * q[2] + q[0] * q[3]), q[0] * q[0] + q[1] * q[1] - q[2] * q[2] - q[3] * q[3]);
+  yaw   = atan2(2.0f * (q[1] * q[2] + q[0] * q[3]), q[0] * q[0] + q[1] * q[1] - q[2] * q[2] - q[3] * q[3]);
   pitch = -asin(2.0f * (q[1] * q[3] - q[0] * q[2]));
   roll  = atan2(2.0f * (q[0] * q[1] + q[2] * q[3]), q[0] * q[0] - q[1] * q[1] - q[2] * q[2] + q[3] * q[3]);
   pitch *= 180.0f / PI;
-  //yaw   *= 180.0f / PI;
-  //yaw   -= 13.8; // Declination at Danville, California is 13 degrees 48 minutes and 47 seconds on 2014-04-04
+  yaw   *= 180.0f / PI;
+  yaw   -= 13.8; // Declination at Danville, California is 13 degrees 48 minutes and 47 seconds on 2014-04-04
   roll  *= 180.0f / PI;
 
   //Set the display outputs for roll, pitch, and yaw
@@ -327,7 +328,7 @@ void loop() {
 
   //Depth
   //Testing----------------------
-  //feetDepth_read =  sensor.depth() * 3.28 + 0.77;                                   //1 meter = 3.28 feet
+  feetDepth_read =  sensor.depth() * 3.28 + 0.68;                                   //1 meter = 3.28 feet
   dutyCycl_depth = (abs(assignedDepth - feetDepth_read)/ 13.0);              //function to get a percentage of assigned height to the feet read
   PWM_Motors_Depth = dutyCycl_depth * 400;                                   //PWM for motors are between 1500 - 1900; difference is 400
 
@@ -339,7 +340,7 @@ void loop() {
   if(subIsReady){
     heightControl();
     rotationControl();
-    //movementControl();
+    movementControl();
   }
 
   //Update and publish current data to master
@@ -398,8 +399,8 @@ void hControlCallback(const auv_cal_state_la_2017::HControl& hControl) {
     if(!subIsReady){
       subIsReady = true;
       nh.loginfo("Motors unlocked.");
-      assignedDepth = feetDepth_read;
     }
+    assignedDepth = feetDepth_read;
   }
   hControlStatus.state = hControl.state;
   hControlStatus.depth = hControl.depth;
@@ -629,7 +630,7 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
 //Going upward
 void goingUpward(){
 
-  float mp = 3.5;
+  float mp = 2;
   int depthPower = PWM_Motors_Depth * 2;
   int levelPower = (400 - depthPower) / 45 * mp;
   //int reversedLevelPower = (PWM_Motors_Depth / 45) * (-1) * mp;
@@ -644,6 +645,7 @@ void goingUpward(){
     //rolled left(positive value)
     if((roll > 2 * i) && (roll < (2 * i + 2))){   
       //Boost the left motors
+      nh.loginfo("up   rolled left");
       T1.writeMicroseconds(1500 + t1);
       T2.writeMicroseconds(1500 - t1);
       //Downgrade the right motors
@@ -653,6 +655,7 @@ void goingUpward(){
     //rolled right(negative value)
     if((roll < -1 *( 2 * i)) && (roll > -1 * (2 * i + 2))){
       //Boost the right motors
+      nh.loginfo("up   rolled right");
       T3.writeMicroseconds(1500 - t1);
       T4.writeMicroseconds(1500 - t1);
       //Downgrade the left motors
@@ -662,6 +665,7 @@ void goingUpward(){
     //pitched backward(positive value)
     if((pitch > 2 * i) && (pitch < (2 * i + 2))){
       //Boost the back motors
+      nh.loginfo("up   pitch backward");
       T1.writeMicroseconds(1500 + t1);
       T4.writeMicroseconds(1500 - t1);
       //Downgrade the front motors
@@ -671,6 +675,7 @@ void goingUpward(){
     //pitched forward(negative value)
     if((pitch < -1 * (2 * i)) && (pitch > -1 * (2 * i + 2))){
       //Boost the front motors
+      nh.loginfo("up   pitch forward");
       T2.writeMicroseconds(1500 - t1);
       T3.writeMicroseconds(1500 - t1);
       //Downgrade the back motors
@@ -699,6 +704,7 @@ void goingDownward(){
     //rolled left (positive value)
     if((roll > 2*i) && (roll < (2*i + 2))){
       //Boost the left motors
+      nh.loginfo("down   rolled left");
       T1.writeMicroseconds(1500 + t1);
       T2.writeMicroseconds(1500 - t1);
       //Downgrade the right motors
@@ -708,6 +714,7 @@ void goingDownward(){
     //rolled right (negative values)
     if((roll < -1 *(2*i)) && (roll > -1 *(2*i + 2))){
       //Boost the right motors
+      nh.loginfo("down   rolled right");
       T3.writeMicroseconds(1500 - t1);
       T4.writeMicroseconds(1500 - t1);
       //Downgrade the left motors
@@ -717,6 +724,7 @@ void goingDownward(){
     //pitched back (positive value)
     if((pitch > 2*i) && (pitch < (2*i + 2))){
       //Boost the back motors
+      nh.loginfo("down   pitch backward");
       T1.writeMicroseconds(1500 + t1);
       T4.writeMicroseconds(1500 - t1);
       //Downgrade the front motors
@@ -726,6 +734,7 @@ void goingDownward(){
     //pitched forward (negative value)
     if((pitch < -1*( 2*i)) && (pitch > -1 *(2*i + 2))){
       //Boost the front motors
+      nh.loginfo("down   pitch forward");
       T2.writeMicroseconds(1500 - t1);
       T3.writeMicroseconds(1500 - t1);
       //Downgrade the back motors
@@ -744,7 +753,7 @@ void heightControl(){
     goingDownward();
 
     //Testing--------------------------
-    feetDepth_read += 0.01;
+    //feetDepth_read += 0.01;
 
   }
   //Going up
@@ -752,7 +761,7 @@ void heightControl(){
     goingUpward();
 
     //Testing---------------------------
-    feetDepth_read -= 0.01;
+    //feetDepth_read -= 0.01;
 
   }
   //Reach the height
@@ -1095,8 +1104,8 @@ void rotateLeftDynamically(){
   T5.writeMicroseconds(1500 + rotatePower);
   T7.writeMicroseconds(1500 - rotatePower);
   //Testing----------------------------
-  yaw += 1;
-  if(yaw > rotationUpperBound) yaw -= 360;
+  //yaw += 1;
+  //if(yaw > rotationUpperBound) yaw -= 360;
 
 }
 
@@ -1107,8 +1116,8 @@ void rotateRightDynamically(){
   T5.writeMicroseconds(1500 - rotatePower);
   T7.writeMicroseconds(1500 + rotatePower);
   //Testing----------------------------
-  yaw -= 1;
-  if(yaw < rotationLowerBound) yaw +=360;
+  //yaw -= 1;
+  //if(yaw < rotationLowerBound) yaw +=360;
 
 }
 
