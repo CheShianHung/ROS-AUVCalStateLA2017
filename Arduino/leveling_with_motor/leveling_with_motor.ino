@@ -1052,6 +1052,10 @@ void movementControl(){
     }
   }
   else{
+    T6.writeMicroseconds(1500);
+    T8.writeMicroseconds(1500);
+    T5.writeMicroseconds(1500);
+    T7.writeMicroseconds(1500);
     centerTimer = 0;
     movementTimer = 0;
     mControlMode5Timer = 0;
