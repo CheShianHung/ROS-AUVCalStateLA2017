@@ -885,6 +885,10 @@ void movementControl(){
     dtostrf(movementTimer, 4, 2, timerChar);
     nh.loginfo(timerChar);
     if(movementTimer >= movementTime){
+      T6.writeMicroseconds(1500);
+      T8.writeMicroseconds(1500);
+      T5.writeMicroseconds(1500);
+      T7.writeMicroseconds(1500);
       mControlMode1 = false;
       nh.loginfo("Mode 1 finished.\n");
     }
@@ -1047,15 +1051,15 @@ void movementControl(){
     dtostrf(mControlMode5Timer, 4, 2, timerChar);
     nh.loginfo(timerChar);
     if(mControlMode5Timer >= mControlRunningTime){
+      T6.writeMicroseconds(1500);
+      T8.writeMicroseconds(1500);
+      T5.writeMicroseconds(1500);
+      T7.writeMicroseconds(1500);
       mControlMode5 = false;
       nh.loginfo("Mode 5 finished.\n");
     }
   }
   else{
-    T6.writeMicroseconds(1500);
-    T8.writeMicroseconds(1500);
-    T5.writeMicroseconds(1500);
-    T7.writeMicroseconds(1500);
     centerTimer = 0;
     movementTimer = 0;
     mControlMode5Timer = 0;
@@ -1104,9 +1108,14 @@ void bottomCamDistanceCallback(const auv_cal_state_la_2017::BottomCamDistance& b
 void rotateLeftDynamically(){
   float rotatePower = PWM_Motors_orient * 1.25;
   if(rotatePower > 400) rotatePower = 400;
-  //Rotate left with PWM_Motors_orient
-  T5.writeMicroseconds(1500 + rotatePower);
-  T7.writeMicroseconds(1500 - rotatePower);
+  if((mControlMode5 && (mControlDirection == 2 || mControlDirection == 4)) || keepMovingRight || keepMovingLeft){
+    T6.writeMicroseconds(1500 + rotatePower);
+    T8.writeMicroseconds(1500 + rotatePower);
+  }
+  else{
+    T5.writeMicroseconds(1500 + rotatePower);
+    T7.writeMicroseconds(1500 - rotatePower);
+  }
   //Testing----------------------------
   //yaw += 1;
   //if(yaw > rotationUpperBound) yaw -= 360;
@@ -1116,14 +1125,31 @@ void rotateLeftDynamically(){
 void rotateRightDynamically(){
   float rotatePower = PWM_Motors_orient * 1.25;
   if(rotatePower > 400) rotatePower = 400;
-  //Rotate right with PWM_Motors_orient
-  T5.writeMicroseconds(1500 - rotatePower);
-  T7.writeMicroseconds(1500 + rotatePower);
+  if((mControlMode5 && (mControlDirection == 2 || mControlDirection == 4)) || keepMovingRight || keepMovingLeft){
+    T6.writeMicroseconds(1500 - rotatePower);
+    T8.writeMicroseconds(1500 - rotatePower);
+  }
+  else{
+    T5.writeMicroseconds(1500 - rotatePower);
+    T7.writeMicroseconds(1500 + rotatePower);
+  }
   //Testing----------------------------
   //yaw -= 1;
   //if(yaw < rotationLowerBound) yaw +=360;
 
 }
+
+//void rotateRightDynamically(){
+//  float rotatePower = PWM_Motors_orient * 1.25;
+//  if(rotatePower > 400) rotatePower = 400;
+//  //Rotate right with PWM_Motors_orient
+//  T5.writeMicroseconds(1500 - rotatePower);
+//  T7.writeMicroseconds(1500 + rotatePower);
+//  //Testing----------------------------
+//  //yaw -= 1;
+//  //if(yaw < rotationLowerBound) yaw +=360;
+//
+//}
 
 //Return 0 to 180
 float degreeToTurn(){
