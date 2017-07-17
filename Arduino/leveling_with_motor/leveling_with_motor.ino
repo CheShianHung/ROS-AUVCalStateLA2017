@@ -859,7 +859,7 @@ void movementControl(){
     }
     else if(keepMovingRight){
       T5.writeMicroseconds(1500 - mControlPower);
-      T7.writeMicroseconds(1500 + mControlPower);
+      T7.writeMicroseconds(1500 - mControlPower);
       //Testing-------------------
       positionX += 0.05;
       nh.loginfo("moving right...");
@@ -873,7 +873,7 @@ void movementControl(){
     }
     else if(keepMovingLeft){
       T5.writeMicroseconds(1500 + mControlPower);
-      T7.writeMicroseconds(1500 - mControlPower);
+      T7.writeMicroseconds(1500 + mControlPower);
       //Testing-------------------
       positionX -= 0.05;
       nh.loginfo("moving left...");
@@ -1025,7 +1025,7 @@ void movementControl(){
     //right
     else if(mControlDirection == 2){
       T5.writeMicroseconds(1500 - mControlPower);
-      T7.writeMicroseconds(1500 + mControlPower);
+      T7.writeMicroseconds(1500 - mControlPower);
       //Testing-------------------
       positionX += 0.05;
       nh.loginfo("moving right...");
@@ -1041,7 +1041,7 @@ void movementControl(){
     //left
     else if(mControlDirection == 4){
       T5.writeMicroseconds(1500 + mControlPower);
-      T7.writeMicroseconds(1500 - mControlPower);
+      T7.writeMicroseconds(1500 + mControlPower);
       //Testing-------------------
       positionX -= 0.05;
       nh.loginfo("moving left...");
