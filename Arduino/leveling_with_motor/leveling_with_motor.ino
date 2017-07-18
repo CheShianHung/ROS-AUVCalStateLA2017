@@ -254,7 +254,7 @@ void setup() {
   currentDepth.data = feetDepth_read;
 
   //assignedDepth = -0.1;
-  assignedYaw = -104.3;
+  assignedYaw = -45;
   //subIsReady = true;
   //assignedYaw = yaw;
   currentRotation.data = yaw;
@@ -316,6 +316,7 @@ void loop() {
   yaw   *= 180.0f / PI;
   yaw   -= 13.8; // Declination at Danville, California is 13 degrees 48 minutes and 47 seconds on 2014-04-04
   roll  *= 180.0f / PI;
+  pitch -= 7.1;
 
   //Set the display outputs for roll, pitch, and yaw
   LcdXY(40, 0);
@@ -328,7 +329,7 @@ void loop() {
 
   //Depth
   //Testing----------------------
-  feetDepth_read =  sensor.depth() * 3.28 + 0.68;                                   //1 meter = 3.28 feet
+  feetDepth_read =  sensor.depth() * 3.28 + 0.93;                                   //1 meter = 3.28 feet
   dutyCycl_depth = (abs(assignedDepth - feetDepth_read)/ 13.0);              //function to get a percentage of assigned height to the feet read
   PWM_Motors_Depth = dutyCycl_depth * 400;                                   //PWM for motors are between 1500 - 1900; difference is 400
 
@@ -401,6 +402,7 @@ void hControlCallback(const auv_cal_state_la_2017::HControl& hControl) {
       nh.loginfo("Motors unlocked.");
     }
     assignedDepth = feetDepth_read;
+    //assignedDepth = 0.1;
   }
   hControlStatus.state = hControl.state;
   hControlStatus.depth = hControl.depth;
@@ -631,7 +633,7 @@ void mControlCallback(const auv_cal_state_la_2017::MControl& mControl){
 void goingUpward(){
 
   float mp = 2;
-  int depthPower = PWM_Motors_Depth * 2;
+  int depthPower = PWM_Motors_Depth * 2.25;
   int levelPower = (400 - depthPower) / 45 * mp;
   //int reversedLevelPower = (PWM_Motors_Depth / 45) * (-1) * mp;
   int reversedLevelPower = -levelPower / 2;
@@ -645,7 +647,7 @@ void goingUpward(){
     //rolled left(positive value)
     if((roll > 2 * i) && (roll < (2 * i + 2))){   
       //Boost the left motors
-      nh.loginfo("up   rolled left");
+      //nh.loginfo("up   rolled left");
       T1.writeMicroseconds(1500 + t1);
       T2.writeMicroseconds(1500 - t1);
       //Downgrade the right motors
@@ -655,7 +657,7 @@ void goingUpward(){
     //rolled right(negative value)
     if((roll < -1 *( 2 * i)) && (roll > -1 * (2 * i + 2))){
       //Boost the right motors
-      nh.loginfo("up   rolled right");
+      //nh.loginfo("up   rolled right");
       T3.writeMicroseconds(1500 - t1);
       T4.writeMicroseconds(1500 - t1);
       //Downgrade the left motors
@@ -665,7 +667,7 @@ void goingUpward(){
     //pitched backward(positive value)
     if((pitch > 2 * i) && (pitch < (2 * i + 2))){
       //Boost the back motors
-      nh.loginfo("up   pitch backward");
+      //nh.loginfo("up   pitch backward");
       T1.writeMicroseconds(1500 + t1);
       T4.writeMicroseconds(1500 - t1);
       //Downgrade the front motors
@@ -675,7 +677,7 @@ void goingUpward(){
     //pitched forward(negative value)
     if((pitch < -1 * (2 * i)) && (pitch > -1 * (2 * i + 2))){
       //Boost the front motors
-      nh.loginfo("up   pitch forward");
+      //nh.loginfo("up   pitch forward");
       T2.writeMicroseconds(1500 - t1);
       T3.writeMicroseconds(1500 - t1);
       //Downgrade the back motors
@@ -691,7 +693,7 @@ void goingDownward(){
 
   float mp = 5;
   PWM_Motors_Depth = -PWM_Motors_Depth;
-  int depthPower = PWM_Motors_Depth * 2;
+  int depthPower = PWM_Motors_Depth * 2.25;
   int levelPower = ((400 + depthPower) / 45) * (-1) * mp;
   //int reversedLevelPower = ((-1) * PWM_Motors_Depth) / 45 * mp;
   int reversedLevelPower = -levelPower / 2;
@@ -702,9 +704,9 @@ void goingDownward(){
     if(t1 < -400) t1 = 400;
     if(t2 > 200) t2 = 200;
     //rolled left (positive value)
-    if((roll > 2*i) && (roll < (2*i + 2))){
+    if((roll < -1 *(2*i)) && (roll > -1 *(2*i + 2))){
       //Boost the left motors
-      nh.loginfo("down   rolled left");
+      //nh.loginfo("down   rolled left");
       T1.writeMicroseconds(1500 + t1);
       T2.writeMicroseconds(1500 - t1);
       //Downgrade the right motors
@@ -712,9 +714,9 @@ void goingDownward(){
       T4.writeMicroseconds(1500 - t2);
     }
     //rolled right (negative values)
-    if((roll < -1 *(2*i)) && (roll > -1 *(2*i + 2))){
+    if((roll > 2*i) && (roll < (2*i + 2))){
       //Boost the right motors
-      nh.loginfo("down   rolled right");
+      //nh.loginfo("down   rolled right");
       T3.writeMicroseconds(1500 - t1);
       T4.writeMicroseconds(1500 - t1);
       //Downgrade the left motors
@@ -722,9 +724,9 @@ void goingDownward(){
       T2.writeMicroseconds(1500 - t2);
     }
     //pitched back (positive value)
-    if((pitch > 2*i) && (pitch < (2*i + 2))){
+    if((pitch < -1*( 2*i)) && (pitch > -1 *(2*i + 2))){
       //Boost the back motors
-      nh.loginfo("down   pitch backward");
+      //nh.loginfo("down   pitch backward");
       T1.writeMicroseconds(1500 + t1);
       T4.writeMicroseconds(1500 - t1);
       //Downgrade the front motors
@@ -732,9 +734,9 @@ void goingDownward(){
       T3.writeMicroseconds(1500 - t2);
     }
     //pitched forward (negative value)
-    if((pitch < -1*( 2*i)) && (pitch > -1 *(2*i + 2))){
+    if((pitch > 2*i) && (pitch < (2*i + 2))){
       //Boost the front motors
-      nh.loginfo("down   pitch forward");
+      //nh.loginfo("down   pitch forward");
       T2.writeMicroseconds(1500 - t1);
       T3.writeMicroseconds(1500 - t1);
       //Downgrade the back motors
@@ -1106,7 +1108,7 @@ void bottomCamDistanceCallback(const auv_cal_state_la_2017::BottomCamDistance& b
 //    T7.writeMicroseconds(1500 + PWM_Motors);
 //  }
 void rotateLeftDynamically(){
-  float rotatePower = PWM_Motors_orient * 1.25;
+  float rotatePower = PWM_Motors_orient * 1.4;
   if(rotatePower > 400) rotatePower = 400;
   if((mControlMode5 && (mControlDirection == 2 || mControlDirection == 4)) || keepMovingRight || keepMovingLeft){
     T6.writeMicroseconds(1500 + rotatePower);
@@ -1123,7 +1125,7 @@ void rotateLeftDynamically(){
 }
 
 void rotateRightDynamically(){
-  float rotatePower = PWM_Motors_orient * 1.25;
+  float rotatePower = PWM_Motors_orient * 1.4;
   if(rotatePower > 400) rotatePower = 400;
   if((mControlMode5 && (mControlDirection == 2 || mControlDirection == 4)) || keepMovingRight || keepMovingLeft){
     T6.writeMicroseconds(1500 - rotatePower);

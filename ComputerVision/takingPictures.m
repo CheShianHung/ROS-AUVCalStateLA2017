@@ -1,11 +1,12 @@
 %cam = videoinput('tisimaq_r2013', 1, 'RGB32 (744x480)');
-cam = videoinput('linuxvideo', 1, 'RGB24_640x480');
+cam = videoinput('linuxvideo', 1, 'RGB24_744x480');
 cam.FramesPerTrigger = 1;
+cam.Brightness = 100; 
 
 found = false;
 camNum = 1; 
-%pause(30); 
-while(~found & camNum < 70)
+pause(180); 
+while(~found & camNum < 100)
     start(cam); 
     frame = getdata(cam); 
     stop(cam); 
