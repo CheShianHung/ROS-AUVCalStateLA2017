@@ -14,7 +14,10 @@ display = 1;            % display image scaling
 corners = true;        % display shape corners
 sigma = 0.33;
 contours = true;
-linethresh = 30;
+linethresh = 10;
+topthresh = 1;
+xthresh = 90;
+d = 100;
 
 %% Initialize outputs
 delta_h = zeros(1,15);
@@ -123,37 +126,71 @@ while m < 60 && n < 30 && (60-m > 30-n)
     
     lines = cv.HoughLinesP(edged, 'Rho',1, 'Theta',pi/180, 'Threshold',50, ...
         'MinLineLength',50, 'MaxLineGap',20);
-    A = zeros(numel(lines),3);
-    initialA = false;
-    a=1;b=1;c=1;
+    A = zeros(numel(lines),6);
+    a=0;b=0;c=0;
+    X = zeros(numel(lines),1);
+    M = zeros(numel(lines),1);
+    Y = zeros(numel(lines),1);
+    left=zeros(1,2);right=zeros(1,2);top=zeros(1,2);
     for i = 1:numel(lines)
         if videofeed
             img = cv.line(img,lines{i}(1:2),lines{i}(3:4),'Color',[255,0,0],'Thickness',3,'LineType','AA');
         end
-        if abs(lines{i}(1) - lines{i}(3)) < linethresh
-            if ~A(1,1) || ((lines{i}(1)-A(1,1)) < linethresh)
-                A(a,1) = (lines{i}(1) + lines{i}(3))/2;
-                a = a + 1;
-            else
-                A(b,2) = (lines{i}(1) + lines{i}(3))/2;
-                b = b + 1;
-            end
-        elseif abs(lines{i}(2) - lines{i}(4)) < linethresh
-            A(c,3) = (lines{i}(2) + lines{i}(4))/2;
+        X(i) = (lines{i}(3)-lines{i}(1))/(lines{i}(4)-lines{i}(2))*(-lines{i}(2))...
+            + lines{i}(1);
+        M(i) = (lines{i}(4)-lines{i}(2))/(lines{i}(3)-lines{i}(1));
+        Y(i) = (lines{i}(4)-lines{i}(2))/(lines{i}(3)-lines{i}(1))*(-lines{i}(1))...
+            + lines{i}(2);
+    end
+    C = [M,X,Y];
+    C = sortrows(C,'descend');
+    B = zeros(numel(lines),2);
+    for i = 1:numel(lines)
+        if abs(C(i,1)) < topthresh
             c = c + 1;
+            A(c,5:6) = C(i,[1,3]);
+        else
+            a = a + 1;
+            B(a,:) = C(i,1:2);
         end
     end
-    left = mean(nonzeros(A(:,1)));
-    right = mean(nonzeros(A(:,2)));
-    top = mean(nonzeros(A(:,3)));
-    if left > right
+    a = 0;
+    B = sortrows(B,2,'descend');
+    for i = 1:numel(lines)
+        if ~A(1,1) || (abs(B(i,2)-A(a,2)) < xthresh)
+            a = a + 1;
+            A(a,1:2) = B(i,1:2);
+        elseif ~A(1,3) || (abs(B(i,2)-A(b,4)) < xthresh)
+            b = b + 1;
+            A(b,3:4) = B(i,1:2);
+        end    
+    end
+    if length(nonzeros(A(:,1))) > 1 && length(nonzeros(A(:,3))) > 1 &&...
+            length(nonzeros(A(:,5))) > 1
+        left = [mean(A(1:a,1)),mean(A(1:a,2))];
+        right = [mean(A(1:b,3)),mean(A(1:b,4))];
+        top = [mean(A(1:c,5)),mean(A(1:c,6))];
+    end
+    if left(2) > right(2)
         temp = left;
         left = right;
         right = temp;
     end
-    if ~isnan(left) && ~isnan(right) && ~isnan(top)
-        cX = (left+right)/2;
-        cY = top+100;
+    if (~isnan(left(1)) && ~isnan(right(1)) && ~isnan(top(1))) &&...
+            logical(left(1)*right(1)*top(1))
+        middle = [(left(1)+right(1))/2,(left(2)+right(2))/2];
+        %         tX = (middle(1)*middle(2)+top(2))/(middle(1)-top(1));
+        %         dX = d*cos(atan(middle(1)));
+        tY = ((top(2)/top(1))+middle(2))/(inv(top(1))-inv(middle(1)));
+        if isinf(middle(1))
+            dY = -d;
+        else
+            dY = -abs(d*sin(atan(middle(1))));
+        end
+        cY = tY - dY;
+        cX = (cY/middle(1))+middle(2);
+        %         cX = tX-dX;
+        %         cY = middle(1)*(cX-middle(2));
         img = cv.circle(img,scale.*[cX,cY],4,'Color',[255,255,255],...
             'Thickness',-1);
     end
@@ -251,6 +288,12 @@ while m < 60 && n < 30 && (60-m > 30-n)
     if videofeed
         imshow(imresize(img,1/display));
     end
+    
+    
+%         pause(2);
+    
+    
+    
     switch camdevice
         case 'webcam'
             img = camera.read(); % initialize camera image for next loop
