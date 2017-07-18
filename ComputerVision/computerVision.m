@@ -113,7 +113,7 @@ global tiMsg;
 global found;
 meandelta_h = zeros(1,15);
 meandelta_x = zeros(1,15);
-theta = zeros(1,15);
+meantheta = zeros(1,15);
 meandistance = zeros(1,15);
 
 %% Given Constants
@@ -196,7 +196,7 @@ switch msg.TaskNumber
                     & (HSV(:,:,1) < upperb(:,:,1));
             end
             
-  
+            
             
             cnts = cv.findContours(mask,'Mode','External','Method','Simple'); % detect all contours
             
@@ -245,17 +245,17 @@ switch msg.TaskNumber
                             center = [cX,cY];
                             delta_h = (origin(2)-center(2))./10;
                             meandelta_h(n) = delta_h;
-%                             fcdMsg.FrontCamVerticalDistance = delta_h;
+                            %                             fcdMsg.FrontCamVerticalDistance = delta_h;
                             delta_x = (origin(1)-center(1))./10;
                             meandelta_x(n) = delta_x;
-%                             fcdMsg.FrontCamHorizontalDistance = delta_x;
+                            %                             fcdMsg.FrontCamHorizontalDistance = delta_x;
                             distance = given_distance*given_radius/radius;
                             meandistance(n) = distance;
-%                             fcdMsg.FrontCamForwardDistance = distance;
+                            %                             fcdMsg.FrontCamForwardDistance = distance;
                             distance = double(distance);
                             delta_x = double(distance);
-                            theta(n) = atand(double(distance/delta_x));
-%                             fprintf('Height:%3.2f Angle:%3.2f Distance:%3.2f\n',delta_h,delta_x,distance); % print the calculated height and amount needed to turn
+                            meantheta(n) = atand(double(distance/delta_x));
+                            %                             fprintf('Height:%3.2f Angle:%3.2f Distance:%3.2f\n',delta_h,delta_x,distance); % print the calculated height and amount needed to turn
                         end
                         k = k+1;
                     end
@@ -327,10 +327,10 @@ switch msg.TaskNumber
         %%
         origin = [l/2,w/2];             % Sets the origin coordinates
         
-      
-     
+        
+        
         %% Processing
-  
+        
         blur = imresize(cv.medianBlur(img,'KSize',5),1/scale); % blur color image
         HSV = rgb2hsv(blur);        % convert color image to LAB colorspace
         HSV = uint8(HSV*255);
@@ -347,7 +347,7 @@ switch msg.TaskNumber
                 & (HSV(:,:,1) < upperb(:,:,1));
         end
         
-      
+        
         
         cnts = cv.findContours(mask,'Mode','External','Method','Simple'); % detect all contours
         
@@ -405,7 +405,7 @@ switch msg.TaskNumber
                         fcdMsg.FrontCamForwardDistance = distance;
                         distance = double(distance);
                         delta_x = double(distance);
-                        theta(n) = atand(double(distance/delta_x));
+                        meantheta(n) = atand(double(distance/delta_x));
                         fprintf('Height:%3.2f Angle:%3.2f Distance:%3.2f\n',delta_h,delta_x,distance); % print the calculated height and amount needed to turn
                     end
                     k = k+1;
@@ -421,9 +421,158 @@ switch msg.TaskNumber
         if videofeed
             imshow(imresize(img,1/display));
         end
+    case 3 % Gate detection initialization
+        %% Initialize Color
+        color = uint8([]);
+        color(1,1,:) = colors_list{color_choice,2}; % pick color from RGB choices
+        colorHSV = rgb2hsv(color);     % convert color choice to LAB colorspace
+        color = colorHSV;
+        huethresh = huethresh/255;
+        satthresh = satthresh/255;
+        colorthresh = zeros(1,2,2);
+        colorthresh(:,:,1) = [color(:,:,1)-huethresh,color(:,:,1)+huethresh];
+        colorthresh(:,:,2) = [color(:,:,2)-satthresh,color(:,:,2)+satthresh];
+        colorthresh(:,:,1) = mod(colorthresh(:,:,1),1);
+        colorthresh = uint8(colorthresh*255);
         
-     
-       
+        lowerb = colorthresh(1,1,:); % lower bound
+        upperb = colorthresh(1,2,:); % upper bound
+        
+        %% Camera initialization
+        
+        switch camdevice
+            case 'webcam'
+                camera = cv.VideoCapture();
+                pause(2);
+                img = camera.read();
+            case 'image'
+                img = which('gate.png');
+                img = cv.imread(img, 'Flags',1);
+            otherwise
+                camera = videoinput('tisimaq_r2013',1,'RGB24 (744x480)');
+                pause(2);
+                img = getsnapshot(camera);
+                img = img(31:400,71:654,:);
+        end
+        
+        l = size(img,1); % length
+        w = size(img,2); % width
+        %%
+        
+        origin = [l/2,w/2];    % Sets the origin coordinates
+        mask = logical([]);
+        
+        m = 1;
+        n = 1;
+        while m < 60 && n < 30 && (60-m > 30-n)
+            %% Processing
+            blur = imresize(cv.medianBlur(img,'KSize',5),1/scale);    % blur color image
+            HSV = rgb2hsv(blur);                     % convert color image to HSV colorspace
+            HSV = uint8(HSV*255);
+            gray = cv.cvtColor(blur,'RGB2GRAY');
+            v = median(median(gray));
+            lowerv = uint8((1-sigma)*v);
+            upperv = uint8((1+sigma)*v);
+            
+            
+            %% Color Threshold
+            % filter out all unwanted color
+            
+            
+            if lowerb(:,:,1) > upperb(:,:,1)
+                
+                mask = (HSV(:,:,2) > lowerb(:,:,2)) &...
+                    (HSV(:,:,2) < upperb(:,:,2)) & ((HSV(:,:,1) > lowerb(:,:,1))...
+                    | (HSV(:,:,1) < upperb(:,:,1)));                        % does the same thing as cv.inRange()
+            else
+                mask = (HSV(:,:,2) > lowerb(:,:,2)) &...
+                    (HSV(:,:,2) < upperb(:,:,2)) & (HSV(:,:,1) > lowerb(:,:,1))...
+                    & (HSV(:,:,1) < upperb(:,:,1));
+            end
+            
+            output = uint8(cv.bitwise_and(blur,blur,'Mask',mask)); % apply the mask
+            output = cv.cvtColor(output,'RGB2GRAY'); % grayscale
+            edged = cv.Canny(output,[lowerv,upperv]);
+            
+            
+            
+            lines = cv.HoughLinesP(edged, 'Rho',1, 'Theta',pi/180, 'Threshold',50, ...
+                'MinLineLength',50, 'MaxLineGap',20);
+            A = zeros(numel(lines),3);
+            a=1;b=1;c=1;
+            for i = 1:numel(lines)
+                if videofeed
+                    img = cv.line(img,lines{i}(1:2),lines{i}(3:4),'Color',[255,0,0],'Thickness',3,'LineType','AA');
+                end
+                if abs(lines{i}(1) - lines{i}(3)) < linethresh
+                    if ~A(1,1) || ((lines{i}(1)-A(1,1)) < linethresh)
+                        A(a,1) = (lines{i}(1) + lines{i}(3))/2;
+                        a = a + 1;
+                    else
+                        A(b,2) = (lines{i}(1) + lines{i}(3))/2;
+                        b = b + 1;
+                    end
+                elseif abs(lines{i}(2) - lines{i}(4)) < linethresh
+                    A(c,3) = (lines{i}(2) + lines{i}(4))/2;
+                    c = c + 1;
+                end
+            end
+            left = mean(nonzeros(A(:,1)));
+            right = mean(nonzeros(A(:,2)));
+            top = mean(nonzeros(A(:,3)));
+            if left > right
+                temp = left;
+                left = right;
+                right = temp;
+            end
+            if ~isnan(left) && ~isnan(right) && ~isnan(top)
+                n = n + 1;
+                cX = (left+right)/2;
+                cY = top+100;
+                if videofeed
+                    img = cv.circle(img,scale.*[cX,cY],4,'Color',[255,255,255],...
+                        'Thickness',-1);
+                end
+                center = [cX,cY];
+                meandelta_h(n) = (origin(2)-center(2))./10;
+                meandelta_x(n) = (origin(1)-center(1))./10;
+%                 meandistance(n) = given_distance*given_radius/radius;
+%                 meantheta(n) = atand(double(meandistance(n)/meandelta_x));
+                %                 fprintf('Height:%3.2f   Angle:%2.1f     Distance:%3.2f  fps:%2.2f\n',delta_h(n),theta(n),distance(n),1/toc); % print the calculated height and amount needed to turn
+            end
+            
+            
+            if videofeed
+                imshow(imresize(img,1/display));
+            end
+            switch camdevice
+                case 'webcam'
+                    img = camera.read(); % initialize camera image for next loop
+                case 'image'
+                    break
+                otherwise
+                    img = getsnapshot(camera);
+                    img = img(31:400,71:654,:);
+            end                                        
+            m = m + 1;
+        end
+        if n == 30 || found
+            if ~found
+                found = true;
+            end
+            tiMsg.State = 1;
+            tiMsg.Angle = mean(meandelta_x(15:end));
+            tiMsg.Height = mean(meandelta_h(15:end));
+            %fcdMsg.FrontCamHorizontalDistance = mean(theta(15:end));
+            %fcdMsg.FrontCamForwardDistance = mean(meandistance(15:end));
+            fprintf('FOUND\nAVERAGE: Height:%3.2f Angle:%3.2f\n',tiMsg.Angle,tiMsg.Direction);
+        else
+            tiMsg.State = 0;
+            %imshow(img);
+            fprintf('Finding...\n')
+        end
+        
+        
 end
 
 %global testTimer;
