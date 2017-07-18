@@ -89,8 +89,10 @@ mask = logical([]);
 m = 1;
 n = 1;
 while m < 60 && n < 30 && (60-m > 30-n)
+    
+    gate = false;
+    topline = false;
     %% Processing
-    tic;
     blur = imresize(cv.medianBlur(img,'KSize',5),1/scale);    % blur color image
     HSV = rgb2hsv(blur);                     % convert color image to LAB colorspace
     HSV = uint8(HSV*255);
@@ -163,136 +165,80 @@ while m < 60 && n < 30 && (60-m > 30-n)
         elseif ~A(1,3) || (abs(B(i,2)-A(b,4)) < xthresh)
             b = b + 1;
             A(b,3:4) = B(i,1:2);
-        end    
+        end
     end
-    if length(nonzeros(A(:,1))) > 1 && length(nonzeros(A(:,3))) > 1 &&...
-            length(nonzeros(A(:,5))) > 1
+    if ~isempty(nonzeros(A(:,1))) && ~isempty(nonzeros(A(:,3)))
         left = [mean(A(1:a,1)),mean(A(1:a,2))];
         right = [mean(A(1:b,3)),mean(A(1:b,4))];
-        top = [mean(A(1:c,5)),mean(A(1:c,6))];
+        if ~isempty(nonzeros(A(:,5)))
+            top = [mean(A(1:c,5)),mean(A(1:c,6))];
+        end
     end
     if left(2) > right(2)
         temp = left;
         left = right;
         right = temp;
     end
-    if (~isnan(left(1)) && ~isnan(right(1)) && ~isnan(top(1))) &&...
-            logical(left(1)*right(1)*top(1))
+    if (~isnan(left(1)) && ~isnan(right(1))) &&...
+            logical(left(1)*right(1))
+        gate = true;
         middle = [(left(1)+right(1))/2,(left(2)+right(2))/2];
-        %         tX = (middle(1)*middle(2)+top(2))/(middle(1)-top(1));
-        %         dX = d*cos(atan(middle(1)));
-        tY = ((top(2)/top(1))+middle(2))/(inv(top(1))-inv(middle(1)));
-        if isinf(middle(1))
-            dY = -d;
-        else
-            dY = -abs(d*sin(atan(middle(1))));
+        if ~isnan(top(1)) && logical(top(1))
+            topline = true;
+            tY = ((top(2)/top(1))+middle(2))/(inv(top(1))-inv(middle(1)));
+            if isinf(middle(1))
+                dY = -d;
+            else
+                dY = -abs(d*sin(atan(middle(1))));
+            end
+            cY = tY - dY;
+            cX = (cY/middle(1))+middle(2);
+            if videofeed
+                img = cv.line(img,scale.*[cX,0],scale.*[cX,l/scale]);
+                img = cv.circle(img,scale.*[cX,cY],4,'Color',[255,255,255],...
+                    'Thickness',-1);
+            end
         end
-        cY = tY - dY;
-        cX = (cY/middle(1))+middle(2);
-        %         cX = tX-dX;
-        %         cY = middle(1)*(cX-middle(2));
-        img = cv.circle(img,scale.*[cX,cY],4,'Color',[255,255,255],...
-            'Thickness',-1);
+        
+        
     end
     
     
-    %     end
-    %     imshow(img);
-    %     [cnts,hierarchy] = cv.findContours(edged,'Mode','CComp','Method','None'); % detect all contours
-    
-    %     output = cv.threshold(output,60,'MaxValue',255,'Type','Binary'); % threshold
-    %
-    %     cnts = cv.findContours(output,'Mode','External','Method','Simple'); % detect all contours
-    %
-    %     %% Arrange contours from largest to smallest
-    %% Arrange contours from largest to smallest
     
     
+    if gate
+        if topline
+            center = [cX,cY];
+            delta_h = (origin(2)-center(2))./10;
+            %                         meandelta_h(n) = delta_h;
+            %                         fcdMsg.FrontCamVerticalDistance = delta_h;
+            delta_x = (origin(1)-center(1))./10;
+            %                         meandelta_x(n) = delta_x;
+            %                         fcdMsg.FrontCamHorizontalDistance = delta_x;
+            %                         distance = given_distance*given_radius/radius;
+            %                         meandistance(n) = distance;
+            %                         fcdMsg.FrontCamForwardDistance = distance;
+            %                         distance = double(distance);
+            %                         delta_x = double(distance);
+            %                         meantheta(n) = atand(double(distance/delta_x));
+            fprintf('Height:%3.2f Vertical:%3.2f\n',delta_h,delta_x); % print the calculated height and amount needed to turn
+            
+            %                 n = n + 1;
+            %     %     else
+            %     %         fprintf('fps:%2.2f\n',1/toc);
+        else
+            cX = middle(2);
+            if videofeed
+                img = cv.line(img,scale.*[cX,0],scale.*[cX,l/scale],'Color',[255,255,255]);
+            end
+            delta_x = (origin(1)-cX)./10;
+            fprintf('Vertical:%3.2f Distance:%3.2f\n',delta_x); % print the calculated height and amount needed to turn
+        end
+    end
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    %
-    %
-    %
-    %     numcnts = numel(cnts);
-    %     %     maxArea = [0,NaN];
-    %     A = zeros(numcnts,2);
-    %     linesdetected = 0;
-    %     if numcnts > 0
-    %         A(1:numcnts,2) = (1:numcnts);
-    %         for i = 1:numcnts
-    %             A(i,1) = cv.contourArea(cnts{i});
-    %         end
-    %         A = sortrows(A,'descend');
-    %         k = 1;
-    %
-    %
-    %         if ~isnan(A(1,2))
-    %             %% Calculate the shape of the detected contour
-    %
-    %             while k <= 1 %length(A(:,1))
-    %                 c = A(k,2);             % index of contour with largest area
-    %                 cnt = cnts{c};
-    %                 M = cv.moments(cnt);
-    %                 cX = int16(M.m10/M.m00);
-    %                 cY = int16(M.m01/M.m00);
-    %                 peri = cv.arcLength(cnt,'Closed',1);
-    %                 approx = cv.approxPolyDP(cnt,'Epsilon',...
-    %                     0.04*peri,'Closed',1); % approximate the corners of the shape
-    %                 if true%length(approx) == 2
-    % %                     linesdetected = linesdetected + 1;
-    %                     %                     [~,radius] =  cv.minEnclosingCircle(cnt);
-    %                     if videofeed
-    %                         if corners
-    %                             for i = 1:length(approx)
-    %                                 img = cv.circle(img,scale.*approx{i},3,'Color',[0,0,255],...
-    %                                     'Thickness',-1); % draws corners of shape
-    %                             end
-    %                         end
-    %                         if contours
-    %                             for i = 1:length(cnt)
-    %                                 img = cv.circle(img,scale.*cnt{i},1,'Color',[255,0,0],...
-    %                                     'Thickness',-1);
-    %                             end
-    %                         end
-    %
-    %                         img = cv.circle(img,scale.*[cX,cY],7,'Color',[255,255,255],...
-    %                             'Thickness',-1); % draws center of shape
-    %
-    %                         %                         img = cv.circle(img,scale.*[cX,cY], scale.*radius, 'Color',[0,0,255], ...
-    %                         %                             'Thickness',2, 'LineType','AA');        % draw the circle outline
-    %                     end
-    %                 end
-    %                 k = k+1;
-    %             end
-    %         end
-    %     end
-    %
-    %
-    %
-    %
-    %
-    %
     if videofeed
         imshow(imresize(img,1/display));
     end
-    
-    
-%         pause(2);
-    
-    
     
     switch camdevice
         case 'webcam'
@@ -307,27 +253,5 @@ while m < 60 && n < 30 && (60-m > 30-n)
     %     %     if 1/t > 10
     %     %         pause(.1-t);
     %     %     end
-    %     %     if circles
-    %     %         center = [cX,cY];
-    %     %         delta_h(n) = (origin(2)-center(2))./10;
-    %     %         delta_x = (origin(1)-center(1))./10;
-    %     %         distance(n) = given_distance*given_radius/radius;
-    %     %         theta(n) = atand(double(distance(n)/delta_x));
-    %     % %         fprintf('Height:%3.2f   Angle:%2.1f     Distance:%3.2f  fps:%2.2f\n',delta_h(n),theta(n),distance(n),1/toc); % print the calculated height and amount needed to turn
-    %     %         n = n + 1;
-    %     %     else
-    %     %         fprintf('fps:%2.2f\n',1/toc);
-    %     %     end
-    % %         m = m + 1;
-    %     % end
-    %     % if n == 30
-    %     %     fcdMsg.FrontCamVerticalDistance = mean(delta_h);
-    %     %     fcdMsg.FrontCamHorizontalDistance = mean(theta);
-    %     %     fcdMsg.FrontCamForwardDistance = mean(distance);
-    %     %     fprintf('Height:%3.2f  Angle:%2.1f   Distance:%3.2f\n',fcdMsg.FrontCamVerticalDistance,fcdMsg.FrontCamHorizontalDistance,...
-    %     %         fcdMsg.FrontCamForwardDistance);
-    %     %     found = true;
-    %     % else
-    %     %     found = false;
-    %     %     fprintf('Not found')
+    
 end
