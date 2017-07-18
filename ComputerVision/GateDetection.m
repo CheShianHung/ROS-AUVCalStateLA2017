@@ -5,14 +5,16 @@ clc;
 given_radius = 8*49/8;
 given_distance = 60;
 color_choice = 6;       % integer; colors listed below
-camdevice = 'image';   % 'webcam' 'image' 'usb'
+camdevice = 'webcam';   % 'webcam' 'image' 'usb'
 videofeed = true;      % shows results
-satthresh = 80;        % threshold sensitivity for saturation channel (0-255)
-huethresh = 15;        % threshold sensitivity for hue channel (0-255)
-scale = 6;              % image processing scaling
+satthresh = 65;        % threshold sensitivity for saturation channel (0-255)
+huethresh = 20;        % threshold sensitivity for hue channel (0-255)
+scale = 1;              % image processing scaling
 display = 1;            % display image scaling
-corners = false;        % display shape corners
+corners = true;        % display shape corners
 sigma = 0.33;
+contours = true;
+linethresh = 30;
 
 %% Initialize outputs
 delta_h = zeros(1,15);
@@ -27,7 +29,9 @@ colors_list = { 'red',[255,0,0];        % 1
     'yellow',[199,204,120]      %3
     'pink',[255,102,102]
     'bouy',[101,240,127]
-    'gate',[250,66,15]};
+    'gate',[42,84,66]
+    'bluue',[56,86,109]
+    'greeen',[81,162,135]};
 
 %% Initialize OpenCV
 
@@ -114,84 +118,139 @@ while m < 60 && n < 30 && (60-m > 30-n)
     output = uint8(cv.bitwise_and(blur,blur,'Mask',mask)); % apply the mask
     output = cv.cvtColor(output,'RGB2GRAY'); % grayscale
     edged = cv.Canny(output,[lowerv,upperv]);
+    %     blur = cv.medianBlur(edged,'KSize',5);
+    
     
     lines = cv.HoughLinesP(edged, 'Rho',1, 'Theta',pi/180, 'Threshold',50, ...
         'MinLineLength',50, 'MaxLineGap',20);
+    A = zeros(numel(lines),3);
+    initialA = false;
+    a=1;b=1;c=1;
+    for i = 1:numel(lines)
+        if videofeed
+            img = cv.line(img,lines{i}(1:2),lines{i}(3:4),'Color',[255,0,0],'Thickness',3,'LineType','AA');
+        end
+        if abs(lines{i}(1) - lines{i}(3)) < linethresh
+            if ~A(1,1) || ((lines{i}(1)-A(1,1)) < linethresh)
+                A(a,1) = (lines{i}(1) + lines{i}(3))/2;
+                a = a + 1;
+            else
+                A(b,2) = (lines{i}(1) + lines{i}(3))/2;
+                b = b + 1;
+            end
+        elseif abs(lines{i}(2) - lines{i}(4)) < linethresh
+            A(c,3) = (lines{i}(2) + lines{i}(4))/2;
+            c = c + 1;
+        end
+    end
+    left = mean(nonzeros(A(:,1)));
+    right = mean(nonzeros(A(:,2)));
+    top = mean(nonzeros(A(:,3)));
+    if left > right
+        temp = left;
+        left = right;
+        right = temp;
+    end
+    if ~isnan(left) && ~isnan(right) && ~isnan(top)
+        cX = (left+right)/2;
+        cY = top+100;
+        img = cv.circle(img,scale.*[cX,cY],4,'Color',[255,255,255],...
+            'Thickness',-1);
+    end
+    
+    
+    %     end
+    %     imshow(img);
+    %     [cnts,hierarchy] = cv.findContours(edged,'Mode','CComp','Method','None'); % detect all contours
     
     %     output = cv.threshold(output,60,'MaxValue',255,'Type','Binary'); % threshold
     %
     %     cnts = cv.findContours(output,'Mode','External','Method','Simple'); % detect all contours
     %
     %     %% Arrange contours from largest to smallest
-    numlines = numel(lines);
-    %     maxArea = [0,NaN];
-    A = zeros(numlines,2);
-    linespresent = false;
-    if numlines >= 4
-        linespresent = true;
-        A(1:numlines,2) = (1:numlines);
-        for i = 1:numlines
-            A(i,1) = sqrt((lines{i}(1)-lines{i}(3))^2+(lines{i}(2)-lines{i}(4))^2);
-        end
-        A = sortrows(A,'descend');
-        x11 = lines{1}(1);
-        y11 = lines{1}(2);
-        x21 = lines{1}(3);
-        y21 = lines{1}(4);
-        x12 = lines{2}(1);
-        y12 = lines{2}(2);
-        x22 = lines{2}(3);
-        y22 = lines{2}(4);
-        %         center(1,1) = ((y22*x11+y11*x11)/(x22-x11)-(y12*x21+y21*x21)/(x12-x21)...
-        %             +y21-y11)/((y22-y11)/(x22-x11)-(y12-y21)/(x12-x21));
-        %         center(1,2) = (y22-y11)/(x22-x11)*(center(1,1)-x11)+y11;
-        midpoint(1,1) = (x11+x21)/2;
-        midpoint(1,2) = (y11+y21)/2;
-        x11 = lines{3}(1);
-        y11 = lines{3}(2);
-        x21 = lines{3}(3);
-        y21 = lines{3}(4);
-        x12 = lines{4}(1);
-        y12 = lines{4}(2);
-        x22 = lines{4}(3);
-        y22 = lines{4}(4);
-        %         center(2,1) = ((y22*x11+y11*x11)/(x22-x11)-(y12*x21+y21*x21)/(x12-x21)...
-        %             +y21-y11)/((y22-y11)/(x22-x11)-(y12-y21)/(x12-x21));
-        %         center(2,2) = (y22-y11)/(x22-x11)*(center(2,1)-x11)+y11;
-        midpoint(2,1) = (x11+21)/2;
-        midpoint(2,2) = (y11+y21)/2;
-        center(1,1) = (midpoint(1,1)+midpoint(2,1))/2;
-        center(1,2) = (midpoint(1,2)+midpoint(2,2))/2;
-        
-        
-   
+    %% Arrange contours from largest to smallest
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     %
     %
-    %        
-                        if videofeed
-                            for i = 1:4
-                                for j = 0:2:2
-                                    img = cv.circle(img,scale.*lines{i}(1+j:2+j),3,'Color',[0,0,255],...
-                                        'Thickness',-1); % draws corners of shape
-                                end
-                            end
     %
-                            img = cv.circle(img,scale.*center,7,'Color',[255,255,255],...
-                                'Thickness',-1); % draws center of shape
+    %     numcnts = numel(cnts);
+    %     %     maxArea = [0,NaN];
+    %     A = zeros(numcnts,2);
+    %     linesdetected = 0;
+    %     if numcnts > 0
+    %         A(1:numcnts,2) = (1:numcnts);
+    %         for i = 1:numcnts
+    %             A(i,1) = cv.contourArea(cnts{i});
+    %         end
+    %         A = sortrows(A,'descend');
+    %         k = 1;
     %
-    %                         img = cv.circle(img,scale.*[cX,cY], scale.*radius, 'Color',[0,0,255], ...
-    %                             'Thickness',2, 'LineType','AA');        % draw the circle outline
-                        end
+    %
+    %         if ~isnan(A(1,2))
+    %             %% Calculate the shape of the detected contour
+    %
+    %             while k <= 1 %length(A(:,1))
+    %                 c = A(k,2);             % index of contour with largest area
+    %                 cnt = cnts{c};
+    %                 M = cv.moments(cnt);
+    %                 cX = int16(M.m10/M.m00);
+    %                 cY = int16(M.m01/M.m00);
+    %                 peri = cv.arcLength(cnt,'Closed',1);
+    %                 approx = cv.approxPolyDP(cnt,'Epsilon',...
+    %                     0.04*peri,'Closed',1); % approximate the corners of the shape
+    %                 if true%length(approx) == 2
+    % %                     linesdetected = linesdetected + 1;
+    %                     %                     [~,radius] =  cv.minEnclosingCircle(cnt);
+    %                     if videofeed
+    %                         if corners
+    %                             for i = 1:length(approx)
+    %                                 img = cv.circle(img,scale.*approx{i},3,'Color',[0,0,255],...
+    %                                     'Thickness',-1); % draws corners of shape
+    %                             end
+    %                         end
+    %                         if contours
+    %                             for i = 1:length(cnt)
+    %                                 img = cv.circle(img,scale.*cnt{i},1,'Color',[255,0,0],...
+    %                                     'Thickness',-1);
+    %                             end
+    %                         end
+    %
+    %                         img = cv.circle(img,scale.*[cX,cY],7,'Color',[255,255,255],...
+    %                             'Thickness',-1); % draws center of shape
+    %
+    %                         %                         img = cv.circle(img,scale.*[cX,cY], scale.*radius, 'Color',[0,0,255], ...
+    %                         %                             'Thickness',2, 'LineType','AA');        % draw the circle outline
+    %                     end
     %                 end
     %                 k = k+1;
     %             end
     %         end
-        end
+    %     end
     %
     %
-        if videofeed
-            imshow(imresize(img,1/display));
-        end
+    %
+    %
+    %
+    %
+    if videofeed
+        imshow(imresize(img,1/display));
+    end
     switch camdevice
         case 'webcam'
             img = camera.read(); % initialize camera image for next loop
@@ -201,31 +260,31 @@ while m < 60 && n < 30 && (60-m > 30-n)
             img = getsnapshot(camera);
             img = img(31:400,71:654,:);
     end
-    %     t = toc;
-    %     if 1/t > 10
-    %         pause(.1-t);
-    %     end
-    %     if circles
-    %         center = [cX,cY];
-    %         delta_h(n) = (origin(2)-center(2))./10;
-    %         delta_x = (origin(1)-center(1))./10;
-    %         distance(n) = given_distance*given_radius/radius;
-    %         theta(n) = atand(double(distance(n)/delta_x));
-    % %         fprintf('Height:%3.2f   Angle:%2.1f     Distance:%3.2f  fps:%2.2f\n',delta_h(n),theta(n),distance(n),1/toc); % print the calculated height and amount needed to turn
-    %         n = n + 1;
-    %     else
-    %         fprintf('fps:%2.2f\n',1/toc);
-    %     end
-    %     m = m + 1;
-    % end
-    % if n == 30
-    %     fcdMsg.FrontCamVerticalDistance = mean(delta_h);
-    %     fcdMsg.FrontCamHorizontalDistance = mean(theta);
-    %     fcdMsg.FrontCamForwardDistance = mean(distance);
-    %     fprintf('Height:%3.2f  Angle:%2.1f   Distance:%3.2f\n',fcdMsg.FrontCamVerticalDistance,fcdMsg.FrontCamHorizontalDistance,...
-    %         fcdMsg.FrontCamForwardDistance);
-    %     found = true;
-    % else
-    %     found = false;
-    %     fprintf('Not found')
+    %     %     t = toc;
+    %     %     if 1/t > 10
+    %     %         pause(.1-t);
+    %     %     end
+    %     %     if circles
+    %     %         center = [cX,cY];
+    %     %         delta_h(n) = (origin(2)-center(2))./10;
+    %     %         delta_x = (origin(1)-center(1))./10;
+    %     %         distance(n) = given_distance*given_radius/radius;
+    %     %         theta(n) = atand(double(distance(n)/delta_x));
+    %     % %         fprintf('Height:%3.2f   Angle:%2.1f     Distance:%3.2f  fps:%2.2f\n',delta_h(n),theta(n),distance(n),1/toc); % print the calculated height and amount needed to turn
+    %     %         n = n + 1;
+    %     %     else
+    %     %         fprintf('fps:%2.2f\n',1/toc);
+    %     %     end
+    % %         m = m + 1;
+    %     % end
+    %     % if n == 30
+    %     %     fcdMsg.FrontCamVerticalDistance = mean(delta_h);
+    %     %     fcdMsg.FrontCamHorizontalDistance = mean(theta);
+    %     %     fcdMsg.FrontCamForwardDistance = mean(distance);
+    %     %     fprintf('Height:%3.2f  Angle:%2.1f   Distance:%3.2f\n',fcdMsg.FrontCamVerticalDistance,fcdMsg.FrontCamHorizontalDistance,...
+    %     %         fcdMsg.FrontCamForwardDistance);
+    %     %     found = true;
+    %     % else
+    %     %     found = false;
+    %     %     fprintf('Not found')
 end
