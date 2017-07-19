@@ -77,7 +77,7 @@ float assignedYaw;
 //Initialize ROS node
 const float rotationUpperBound = 166.2;
 const float rotationLowerBound = -193.8;
-const float topDepth = 1;
+const float topDepth = 0.5;
 const float bottomDepth = 12;
 int mControlDirection;
 float mControlPower;
@@ -254,7 +254,7 @@ void setup() {
   currentDepth.data = feetDepth_read;
 
   //assignedDepth = -0.1;
-  assignedYaw = -45;
+  assignedYaw = -191.5;
   //subIsReady = true;
   //assignedYaw = yaw;
   currentRotation.data = yaw;
@@ -329,7 +329,7 @@ void loop() {
 
   //Depth
   //Testing----------------------
-  feetDepth_read =  sensor.depth() * 3.28 + 0.93;                                   //1 meter = 3.28 feet
+  feetDepth_read =  sensor.depth() * 3.28 + 0.57;                                   //1 meter = 3.28 feet
   dutyCycl_depth = (abs(assignedDepth - feetDepth_read)/ 13.0);              //function to get a percentage of assigned height to the feet read
   PWM_Motors_Depth = dutyCycl_depth * 400;                                   //PWM for motors are between 1500 - 1900; difference is 400
 

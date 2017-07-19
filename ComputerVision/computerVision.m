@@ -13,7 +13,7 @@ addpath('~/cv/mexopencv/opencv_contrib');
 % rosgenmsg(folderpath);
 
 %% Initialization
-global fcdPub bcdPub tiPub tiMsg fcdMsg bcdMsg camera found testTimer tiMsgTemp cviSub
+global fcdPub bcdPub tiPub tiMsg fcdMsg bcdMsg camera found testTimer tiMsgTemp cviSub;
 fcdPub = rospublisher('/front_cam_distance','auv_cal_state_la_2017/FrontCamDistance');
 bcdPub = rospublisher('/bottom_cam_distance','auv_cal_state_la_2017/BottomCamDistance');
 tiPub = rospublisher('/target_info','auv_cal_state_la_2017/TargetInfo');
@@ -53,7 +53,8 @@ while 1
     
     %% Evaluate inputs
     if cviMsg.CameraNumber == 1 && ~frontCam
-        camera = videoinput('linuxvideo',2,'RGB24_744x480');
+        camera = videoinput('linuxvideo',1,'RGB24_744x480');
+        %camera = webcam(1);
         frontCam = true;
         bottomCam = false;
     elseif cviMsg.CameraNumber == 2 && ~bottomCam
@@ -78,9 +79,9 @@ while 1
     end
     
     %% Send Msg
-%     send(fcdPub, fcdMsg);
-%     send(bcdPub, bcdMsg);
-%     send(tiPub, tiMsg);
+    send(fcdPub, fcdMsg);
+    send(bcdPub, bcdMsg);
+    send(tiPub, tiMsg);
     
     %% Loop rate (10Hz)
     waitfor(rate);
@@ -100,7 +101,7 @@ end
 function FrontCamera(msg)
 
 %% Initialize outputs
-global camera fcdMsg tiMsg found tiPub
+global camera fcdMsg tiMsg found tiPub;
 meandelta_h = zeros(1,15);
 meandelta_x = zeros(1,15);
 meantheta = zeros(1,15);
@@ -113,8 +114,8 @@ given_radius = msg.GivenLength;
 given_distance = msg.GivenDistance;
 % cviMsg.GivenColor = 2;                     % integer; colors listed below
 color_choice = msg.GivenColor;
-camdevice = 'usb';                      % 'webcam' 'image' 'usb'
-videofeed = false;                      % shows results
+camdevice = 'webcam';                      % 'webcam' 'image' 'usb'
+videofeed = true;                      % shows results
 satthresh = 150;                         % threshold sensitivity for saturation channel (0-255)
 huethresh = 50;                         % threshold sensitivity for hue channel (0-255)
 scale = 4;                              % image processing scaling
@@ -159,6 +160,7 @@ switch msg.TaskNumber
         switch camdevice
             case 'webcam'
                 img = camera.read();
+                %img = snapshot(camera);
             case 'image'
                 img = which('buoy.png');
                 img = cv.imread(img, 'Flags',1);
@@ -173,7 +175,7 @@ switch msg.TaskNumber
         origin = [l/2,w/2];             % Sets the origin coordinates
         
         
-        while ~found || strcmp(msgReceiveFromMaster,'keepFinding')
+        %%%while ~found || strcmp(msgReceiveFromMaster,'keepFinding')
             m = 1;  % total attempts
             n = 1;  % successful attempts
             while m < 60 && n < 30 && (60-m > 30-n) % take at most 60 frames
@@ -254,7 +256,7 @@ switch msg.TaskNumber
                                 distance = double(distance);
                                 delta_x = double(distance);
                                 meantheta(n) = atand(double(distance/delta_x));
-                                %                             fprintf('Height:%3.2f Angle:%3.2f Distance:%3.2f\n',delta_h,delta_x,distance); % print the calculated height and amount needed to turn
+                                fprintf('Height:%3.2f Angle:%3.2f Distance:%3.2f\n',delta_h,delta_x,distance); % print the calculated height and amount needed to turn
                             end
                             k = k+1;
                         end
@@ -267,7 +269,8 @@ switch msg.TaskNumber
                 end
                 switch camdevice
                     case 'webcam'
-                        img = camera.read();        % initialize camera image for next loop
+                        %img = camera.read();        % initialize camera image for next loop
+                        img = snapshot(camera);
                     case 'image'
                         break
                     otherwise
@@ -286,7 +289,7 @@ switch msg.TaskNumber
                 
                 %             send(fcdPub, fcdMsg);
                 %     send(bcdPub, bcdMsg);
-                send(tiPub, tiMsg);
+                %%%send(tiPub, tiMsg);
                 
                 %fcdMsg.FrontCamHorizontalDistance = mean(theta(15:end));
                 %fcdMsg.FrontCamForwardDistance = mean(meandistance(15:end));
@@ -295,10 +298,10 @@ switch msg.TaskNumber
             else
                 tiMsg.State = 0;
                 %imshow(img);
-                send(tiPub, tiMsg);
+                %%%send(tiPub, tiMsg);
                 fprintf('Finding...\n')
             end
-        end
+        %%%end
     case 2 % Running buoy detection
         %% Initialize Color
         color = uint8([]);
@@ -360,7 +363,7 @@ switch msg.TaskNumber
         
         %% Arrange contours from largest to smallest
         numcnts = numel(cnts);
-        A = zeros(numcnts,2);
+        A = zeros(numcnts,2);false
         circles = false;
         if numcnts > 0
             A(1:numcnts,2) = (1:numcnts);
