@@ -13,7 +13,7 @@ addpath('~/cv/mexopencv/opencv_contrib');
 % rosgenmsg(folderpath);
 
 %% Initialization
-global fcdPub bcdPub tiPub tiMsg fcdMsg bcdMsg camera found testTimer tiMsgTemp cviSub;
+global fcdPub bcdPub tiPub tiMsg fcdMsg bcdMsg camera found tiMsgTemp cviSub;
 fcdPub = rospublisher('/front_cam_distance','auv_cal_state_la_2017/FrontCamDistance');
 bcdPub = rospublisher('/bottom_cam_distance','auv_cal_state_la_2017/BottomCamDistance');
 tiPub = rospublisher('/target_info','auv_cal_state_la_2017/TargetInfo');
@@ -29,7 +29,8 @@ cviSub = rossubscriber('/cv_info');
 frontCam = false;
 bottomCam = false;
 found = false;
-testTimer = 0;
+%global testTimer;
+%testTimer = 0;
 
 %% Rate of loop (100Hz)
 rate = rosrate(100);
@@ -65,7 +66,7 @@ while 1
         frontCam = false;
         bottomCam = false;
         found = false;
-        testTimer = 0;
+        %testTimer = 0;
         disp("task done");
     end
     

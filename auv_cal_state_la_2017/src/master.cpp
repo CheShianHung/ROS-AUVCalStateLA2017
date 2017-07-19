@@ -9,6 +9,7 @@
 #include "auv_cal_state_la_2017/BottomCamDistance.h"
 #include "auv_cal_state_la_2017/TargetInfo.h"
 #include "auv_cal_state_la_2017/CVInfo.h"
+#include "auv_cal_state_la_2017/Hydrophone.h"
 #include <sstream>
 
 // height_control: (int) state, (float) depth
@@ -66,6 +67,7 @@ void mControlStatusCallback(const auv_cal_state_la_2017::MControl mc);
 void frontCamDistanceCallback(const auv_cal_state_la_2017::FrontCamDistance fcd);
 void bottomCamDistanceCallback(const auv_cal_state_la_2017::BottomCamDistance bcd);
 void targetInfoCallback(const auv_cal_state_la_2017::TargetInfo ti);
+void hydrophoneCallback(const auv_cal_state_la_2017::Hydrophone hy);
 
 //Regular functions
 void checkMotorNode();
@@ -79,10 +81,12 @@ const float angleError = 5.0;
 const float heightError = 0.2;
 int directionToMove;
 int pneumaticsNum;
+int hydrophoneDirection;
 float angleToTurn;
 float heightToMove;
 float motorPower;
 float motorRunningTime;
+float hydrophoneAngle;
 //float currentTargetDepth;
 //float currentTargetRotation;
 
@@ -143,6 +147,8 @@ bool task_cv_getTargetInfo_1;
 bool task_cv_beforeCenter_1;
 bool task_cv_centering_1;
 
+bool task_hydrophone_finding;
+
 int main(int argc, char **argv){
 
   //Initializing ROS variables
@@ -157,6 +163,7 @@ int main(int argc, char **argv){
   ros::Subscriber frontCamDistanceSubscriber = node.subscribe("front_cam_distance", 100, frontCamDistanceCallback);
   ros::Subscriber bottomCamDistanceSubscriber = node.subscribe("bottom_cam_distance", 100, bottomCamDistanceCallback);
   ros::Subscriber targetInfoSubscriber = node.subscribe("target_info", 100, targetInfoCallback);
+  ros::Subscriber hydrophoneSubscriber = node.subscribe("hydrophone", 100, hydrophoneCallback);
   ros::Publisher pControlPublisher = node.advertise<std_msgs::Int32>("pneumatics_control", 100);
   ros::Publisher hControlPublisher = node.advertise<auv_cal_state_la_2017::HControl>("height_control", 100);
   ros::Publisher rControlPublisher = node.advertise<auv_cal_state_la_2017::RControl>("rotation_control", 100);
@@ -186,23 +193,25 @@ int main(int argc, char **argv){
   heightToMove = 0;
   motorPower = 0;
   motorRunningTime = 0;
+  hydrophoneDirection = 0;
+  hydrophoneAngle = 0;
 
-  task0_submergeToWater = false;
-  task_turnOnMotors = false;
+  task0_submergeToWater = true;
+  task_turnOnMotors = true;
   task_submergeXft = true;
   task_emergeXft = true;
   task_emergeToTop = true;
   task_rotateRightXd1 = true;
   task_rotateRightXd2 = true;
   task_rotateRightXd3 = true;
-  task_rotateLeftXd1 = false;
+  task_rotateLeftXd1 = true;
   task_rotateLeftXd2 = true;
   task_rotateLeftXd3 = true;
   task_keepRotatingRight = true;
   task_keepRotatingLeft = true;
-  task_submergeXft2 = false;
+  task_submergeXft2 = true;
   task_mode1Movement = true;
-  task_mode5Movement1 = false;
+  task_mode5Movement1 = true;
   task_mode5Movement2 = true;
   task_pneumaticsControl1 = true;
   task_pneumaticsControl2 = true;
@@ -217,6 +226,8 @@ int main(int argc, char **argv){
   task_cv_getTargetInfo_1 = true;
   task_cv_beforeCenter_1 = true;
   task_cv_centering_1 = true;
+
+  task_hydrophone_finding = false;
 
 
   // ROS_INFO("Master starts running. Checking each topic...");
@@ -286,7 +297,7 @@ int main(int argc, char **argv){
   }
 
   resetBoolVariables();
-  breakBetweenTasks(15);
+  // breakBetweenTasks(15);
 
   //Task =======================================================================
   heightToMove = 6;
@@ -402,7 +413,7 @@ int main(int argc, char **argv){
   }
 
   resetBoolVariables();
-  breakBetweenTasks(15);
+  // breakBetweenTasks(15);
 
   //Task =======================================================================
   angleToTurn = 90;
@@ -483,7 +494,7 @@ int main(int argc, char **argv){
   }
 
   resetBoolVariables();
-  breakBetweenTasks(60);
+  // breakBetweenTasks(60);
 
   //Task =======================================================================
   motorPower = 100;
@@ -680,17 +691,17 @@ int main(int argc, char **argv){
   resetBoolVariables();
 
 //settingCVInfo(cameraNum,taskNum,givenColor,givenShape,givenLength,givenDistance)
-  // ROS_INFO("Finding object...");
   //Task =======================================================================
   while (ros::ok() && !task_cv_findingObject_testing){
+    ROS_INFO("Finding object...");
     while(ros::ok() && !objectFound){
       settingCVInfo(1,1,2,0,49,60);
       cvInfoPublisher.publish(cvInfo);
       ros::spinOnce();
       loop_rate.sleep();
     }
+    ROS_INFO("Mission code - object found.\n");
   }
-  // ROS_INFO("Mission code - object found.\n");
 
   resetBoolVariables();
 
@@ -830,6 +841,16 @@ int main(int argc, char **argv){
 
   resetBoolVariables();
 
+  //Task =======================================================================
+  while(ros::ok() && !task_hydrophone_finding){
+    settingCVInfo(0,0,0,0,0,0);
+    cvInfoPublisher.publish(cvInfo);
+    ros::spinOnce();
+    loop_rate.sleep();
+  }
+
+  resetBoolVariables();
+
   //Executing... ===============================================================
   ROS_INFO("Missions completed!");
   while(ros::ok()){
@@ -921,6 +942,7 @@ void currentDepthCallback(const std_msgs::Float32& currentDepth){
   else if(!task_cv_getTargetInfo_1){}
   else if(!task_cv_beforeCenter_1){}
   else if(!task_cv_centering_1){}
+  else if(!task_hydrophone_finding){}
 }
 
 
@@ -961,6 +983,7 @@ void currentRotationCallback(const std_msgs::Float32& currentRotation){
   else if(!task_cv_getTargetInfo_1){}
   else if(!task_cv_beforeCenter_1){}
   else if(!task_cv_centering_1){}
+  else if(!task_hydrophone_finding){}
 }
 
 
@@ -1006,6 +1029,7 @@ void frontCamDistanceCallback(const auv_cal_state_la_2017::FrontCamDistance fcd)
   else if(!task_cv_getTargetInfo_1){}
   else if(!task_cv_beforeCenter_1){}
   else if(!task_cv_centering_1){}
+  else if(!task_hydrophone_finding){}
 }
 
 
@@ -1051,6 +1075,7 @@ void bottomCamDistanceCallback(const auv_cal_state_la_2017::BottomCamDistance bc
   else if(!task_cv_getTargetInfo_1){}
   else if(!task_cv_beforeCenter_1){}
   else if(!task_cv_centering_1){}
+  else if(!task_hydrophone_finding){}
 }
 
 
@@ -1119,6 +1144,7 @@ void pControlStatusCallback(const std_msgs::Int32 pc){
   else if(!task_cv_getTargetInfo_1){}
   else if(!task_cv_beforeCenter_1){}
   else if(!task_cv_centering_1){}
+  else if(!task_hydrophone_finding){}
 }
 
 
@@ -1266,6 +1292,7 @@ void hControlStatusCallback(const auv_cal_state_la_2017::HControl hc){
   }
   else if(!task_cv_beforeCenter_1){}
   else if(!task_cv_centering_1){}
+  else if(!task_hydrophone_finding){}
 }
 
 
@@ -1441,6 +1468,7 @@ void rControlStatusCallback(const auv_cal_state_la_2017::RControl rc){
   }
   else if(!task_cv_beforeCenter_1){}
   else if(!task_cv_centering_1){}
+  else if(!task_hydrophone_finding){}
 }
 
 
@@ -1578,6 +1606,7 @@ void mControlStatusCallback(const auv_cal_state_la_2017::MControl mc){
       ROS_INFO("Finished centering.");
     }
   }
+  else if(!task_hydrophone_finding){}
 }
 
 
@@ -1642,6 +1671,44 @@ void targetInfoCallback(const auv_cal_state_la_2017::TargetInfo ti){
     }
   }
   else if(!task_cv_centering_1){}
+  else if(!task_hydrophone_finding){}
+}
+
+
+
+void hydrophoneCallback(const auv_cal_state_la_2017::Hydrophone hy){
+  if(!allNodesAreReady){}
+  else if(!task0_submergeToWater){}
+  else if(!task_turnOnMotors){}
+  else if(!task_submergeXft){}
+  else if(!task_emergeXft){}
+  else if(!task_emergeToTop){}
+  else if(!task_rotateRightXd1){}
+  else if(!task_rotateRightXd2){}
+  else if(!task_rotateRightXd3){}
+  else if(!task_rotateLeftXd1){}
+  else if(!task_rotateLeftXd2){}
+  else if(!task_rotateLeftXd3){}
+  else if(!task_submergeXft2){}
+  else if(!task_mode1Movement){}
+  else if(!task_mode5Movement1){}
+  else if(!task_mode5Movement2){}
+  else if(!task_pneumaticsControl1){}
+  else if(!task_pneumaticsControl2){}
+  else if(!task_square_submergeXft){}
+  else if(!task_square_mode5Movement1){}
+  else if(!task_square_mode5Movement2){}
+  else if(!task_square_rotateRightXd){}
+  else if(!task_square_emergeToTop){}
+  else if(!task_cv_findingObject_testing){}
+  else if(!task_cv_getTargetInfo_1){}
+  else if(!task_cv_beforeCenter_1){}
+  else if(!task_cv_centering_1){}
+  else if(!task_hydrophone_finding){
+    ROS_INFO("Message received.");
+    hydrophoneDirection = hy.direction;
+    hydrophoneAngle = hy.angle;
+  }
 }
 
 

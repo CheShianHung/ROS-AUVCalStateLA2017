@@ -1,20 +1,16 @@
-data = 1;
+clear;
+clc;
 
-server = tcpip('0.0.0.0',55000,'NetworkRole','Server');
-s = whos('data');
-set(server,'OutputBufferSize',s.bytes);
-fopen(server);
+hyPub = rospublisher('/hydrophone','auv_cal_state_la_2017/Hydrophone');
+hyMsg = rosmessage('auv_cal_state_la_2017/Hydrophone');
 
-client = tcpip('10.0.0.1',55000,'NetworkRole','Client');
-set(client,'InputBufferSize',7688);
-set(client,'Timeout',30);
-fopen(client);
+rate = rosrate(10);
 
-while data < 100 
-    fwrite(server,data(:),'double');
-    data = fread(client,1,'double');
-    disp(data);
-    pause(1);
+while 1
+    hyMsg.Direction = 9;
+    hyMsg.Angle = 55.5;
+    
+    send(hyPub, hyMsg);
+    
+    waitfor(rate);
 end
-
-fclose(server);
