@@ -40,7 +40,7 @@ void setup (){
 void loop (){
   pneumaticsControl();
   nh.spinOnce();
-  delay(10);
+  delay(100);
 }
 
 void pControlCallback(const std_msgs::Int32& pControl){
@@ -57,11 +57,15 @@ void pControlCallback(const std_msgs::Int32& pControl){
       nh.loginfo("pneumatics_control is now cancelled\n");
     }
   }
-  else if (pControl.data >= 1 && pControl.data <= 6){
+  else if (pControl.data >= 4 && pControl.data <= 9){
     if(!pControlIsRunning){
       pControlNum = pControl.data;
       pControlIsRunning = true;
       pControlTimer = 0;
+      if(pControl.data == 5)
+        pControlTime = 3;
+      else
+        pControlTime = 1;
       char charBuf[5];
       nh.loginfo("pneumatics_control number");
       nh.loginfo(numChar);
@@ -84,12 +88,12 @@ void pControlCallback(const std_msgs::Int32& pControl){
 
 void pneumaticsControl(){
   if(pControlIsRunning){
-    digitalWrite(pControlNum + 3, HIGH);
-    pControlTimer += 0.01;
+    digitalWrite(pControlNum, HIGH);
+    pControlTimer += 0.1;
     if(pControlTimer >= pControlTime){
       nh.loginfo("Mission completed.\n");
       pControlIsRunning = false;
-      digitalWrite(pControlNum + 3, LOW);
+      digitalWrite(pControlNum, LOW);
     }
   }
   else{
