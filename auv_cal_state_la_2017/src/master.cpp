@@ -230,15 +230,15 @@ int main(int argc, char **argv){
   task_submergeXft = true;
   task_emergeXft = true;
   task_emergeToTop = true;
-  task_rotateRightXd1 = true;
-  task_rotateRightXd2 = true;
-  task_rotateRightXd3 = true;
-  task_rotateLeftXd1 = true;
-  task_rotateLeftXd2 = true;
-  task_rotateLeftXd3 = true;
+  task_rotateRightXd1 = false;
+  task_rotateRightXd2 = false;
+  task_rotateRightXd3 = false;
+  task_rotateLeftXd1 = false;
+  task_rotateLeftXd2 = false;
+  task_rotateLeftXd3 = false;
   task_keepRotatingRight = true;
   task_keepRotatingLeft = true;
-  task_submergeXft2 = false;
+  task_submergeXft2 = true;
   task_mode1Movement = true;
   task_mode5Movement1 = true;
   task_mode5Movement2 = true;
@@ -252,7 +252,7 @@ int main(int argc, char **argv){
   task_gate1_changeAngle = true;
   task_gate1_mode5Forward = true;
   task_gate1_mode5Break = true;
-  task_gate1_emergeToTop = false;
+  task_gate1_emergeToTop = true;
 
   task_square_submergeXft = true;
   task_square_mode5Movement1 = true;
@@ -1357,43 +1357,33 @@ void hControlStatusCallback(const auv_cal_state_la_2017::HControl hc){
 
 
 
-void rControlReceiveCheck(int rState, float rDepth, bool* currentTask, int rcState, float rcDepth){
+void rControlReceiveCheck(int rState, float rRotation, bool* currentTask, int rcState, float rcRotation){
   if(!receivedFromRControl){
-    if(rState == 0 && rDepth != -1)
-      ROS_INFO("Sending command to height_control - rotate left x degrees");
-    if(rState == 0 && rDepth == -1)
-      ROS_INFO("Sending command to height_control - keep rotating left");
-    if(rState == 2 && rDepth != -1)
-      ROS_INFO("Sending command to height_control - rotate right x degrees");
-    if(rState == 2 && rDepth == -1)
-      ROS_INFO("Sending command to height_control - keep rotating right");
-    if(rState == 2)
-      ROS_INFO("Sending command to height_control - emerge x ft");
-    if(rState == 4)
-      ROS_INFO("Sending command to height_control - turn on the motors");
+    if(rState == 0 && rRotation != -1)
+      ROS_INFO("Sending command to rotation_control - rotate left x degrees");
+    if(rState == 0 && rRotation == -1)
+      ROS_INFO("Sending command to rotation_control - keep rotating left");
+    if(rState == 2 && rRotation != -1)
+      ROS_INFO("Sending command to rotation_control - rotate right x degrees");
+    if(rState == 2 && rRotation == -1)
+      ROS_INFO("Sending command to rotation_control - keep rotating right");
+    if(rState == 3)
+      ROS_INFO("Sending commend to rotation_control - rotate according to fcd");
   }
-  if(!receivedFromHControl && hcState == hState && hcDepth == hDepth){
-    receivedFromHControl = true;
-    if(hState == 0)
-      ROS_INFO("height_control message received - submerging...");
-    if(hState == 2)
-      ROS_INFO("height_control message received - emerging...");
-    if(hState == 4)
-      ROS_INFO("height_control message received - motors are on");
+  if(!receivedFromRControl && rcState == rState && rcRotation == rRotation){
+    receivedFromRControl = true;
+    ROS_INFO("rotation_control message received - rotating...");
   }
-  if(receivedFromHControl && hcState == 1 && hcDepth == 0){
-    receivedFromHControl = false;
+  if(receivedFromRControl && rcState == 1 && rcRotation == 0){
+    receivedFromRControl = false;
     *currentTask = true;
-    if(hState == 0)
-      ROS_INFO("Submerging completed.\n");
-    if(hState == 2)
-      ROS_INFO("Emerging completed.\n");
-    if(hState == 4)
-      ROS_INFO("Sub reached the initial assigned depth.\n");
+    ROS_INFO("Rotating completed.\n");
   }
 }
 
 void rControlStatusCallback(const auv_cal_state_la_2017::RControl rc){
+  int rcState = rc.state;
+  float rcRotation = rc.rotation;
   if(!allNodesAreReady){
     if(!checkingRotationControl){
       ROS_INFO("Checking rotation_control...");
@@ -1413,118 +1403,28 @@ void rControlStatusCallback(const auv_cal_state_la_2017::RControl rc){
   else if(!task_emergeXft){}
   else if(!task_emergeToTop){}
   else if(!task_rotateRightXd1){
-    if(!receivedFromRControl){
-      ROS_INFO("Sending commend to rotation_control - rotate right x degrees");
-    }
-    if(!receivedFromRControl && rc.state == 2 && rc.rotation == angleToTurn){
-      receivedFromRControl = true;
-      ROS_INFO("rotation_control message received - rotating...");
-    }
-    if(receivedFromRControl && rc.state == 1 && rc.rotation == 0){
-      receivedFromRControl = false;
-      task_rotateRightXd1 = true;
-      ROS_INFO("Rotating completed.\n");
-    }
+    rControlReceiveCheck(2,angleToTurn,&task_rotateRightXd1,rcState,rcRotation);
   }
   else if(!task_rotateRightXd2){
-    if(!receivedFromRControl){
-      ROS_INFO("Sending commend to rotation_control - rotate right x degrees");
-    }
-    if(!receivedFromRControl && rc.state == 2 && rc.rotation == angleToTurn){
-      receivedFromRControl = true;
-      ROS_INFO("rotation_control message received - rotating...");
-    }
-    if(receivedFromRControl && rc.state == 1 && rc.rotation == 0){
-      receivedFromRControl = false;
-      task_rotateRightXd2 = true;
-      ROS_INFO("Rotating completed.\n");
-    }
+    rControlReceiveCheck(2,angleToTurn,&task_rotateRightXd2,rcState,rcRotation);
   }
   else if(!task_rotateRightXd3){
-    if(!receivedFromRControl){
-      ROS_INFO("Sending commend to rotation_control - rotate right x degrees");
-    }
-    if(!receivedFromRControl && rc.state == 2 && rc.rotation == angleToTurn){
-      receivedFromRControl = true;
-      ROS_INFO("rotation_control message received - rotating...");
-    }
-    if(receivedFromRControl && rc.state == 1 && rc.rotation == 0){
-      receivedFromRControl = false;
-      task_rotateRightXd3 = true;
-      ROS_INFO("Rotating completed.\n");
-    }
+    rControlReceiveCheck(2,angleToTurn,&task_rotateRightXd3,rcState,rcRotation);
   }
   else if(!task_rotateLeftXd1){
-    if(!receivedFromRControl){
-      ROS_INFO("Sending commend to rotation_control - rotate left x degrees");
-    }
-    if(!receivedFromRControl && rc.state == 0 && rc.rotation == angleToTurn){
-      receivedFromRControl = true;
-      ROS_INFO("rotation_control message received - rotating...");
-    }
-    if(receivedFromRControl && rc.state == 1 && rc.rotation == 0){
-      receivedFromRControl = false;
-      task_rotateLeftXd1 = true;
-      ROS_INFO("Rotating completed.\n");
-    }
+    rControlReceiveCheck(0,angleToTurn,&task_rotateLeftXd1,rcState,rcRotation);
   }
   else if(!task_rotateLeftXd2){
-    if(!receivedFromRControl){
-      ROS_INFO("Sending commend to rotation_control - rotate left x degrees");
-    }
-    if(!receivedFromRControl && rc.state == 0 && rc.rotation == angleToTurn){
-      receivedFromRControl = true;
-      ROS_INFO("rotation_control message received - rotating...");
-    }
-    if(receivedFromRControl && rc.state == 1 && rc.rotation == 0){
-      receivedFromRControl = false;
-      task_rotateLeftXd2 = true;
-      ROS_INFO("Rotating completed.\n");
-    }
+    rControlReceiveCheck(0,angleToTurn,&task_rotateLeftXd2,rcState,rcRotation);
   }
   else if(!task_rotateLeftXd3){
-    if(!receivedFromRControl){
-      ROS_INFO("Sending commend to rotation_control - rotate left x degrees");
-    }
-    if(!receivedFromRControl && rc.state == 0 && rc.rotation == angleToTurn){
-      receivedFromRControl = true;
-      ROS_INFO("rotation_control message received - rotating...");
-    }
-    if(receivedFromRControl && rc.state == 1 && rc.rotation == 0){
-      receivedFromRControl = false;
-      task_rotateLeftXd3 = true;
-      ROS_INFO("Rotating completed.\n");
-    }
+    rControlReceiveCheck(0,angleToTurn,&task_rotateLeftXd3,rcState,rcRotation);
   }
   else if(!task_keepRotatingRight){
-    if(!receivedFromRControl){
-      ROS_INFO("Sending commend to rotation_control - keep rotating right");
-    }
-    if(!receivedFromRControl && rc.state == 2 && rc.rotation == -1){
-      receivedFromRControl = true;
-      ROS_INFO("rotation_control message received - rotating...");
-    }
-    //Testing-------------------------------------------------------
-    if(receivedFromRControl && rc.state == 1 && rc.rotation == 0){
-      receivedFromRControl = false;
-      task_keepRotatingRight = true;
-      ROS_INFO("Rotating completed.\n");
-    }
+    rControlReceiveCheck(2,-1,&task_keepRotatingRight,rcState,rcRotation);
   }
   else if(!task_keepRotatingLeft){
-    if(!receivedFromRControl){
-      ROS_INFO("Sending commend to rotation_control - keep rotating left");
-    }
-    if(!receivedFromRControl && rc.state == 0 && rc.rotation == -1){
-      receivedFromRControl = true;
-      ROS_INFO("rotation_control message received - rotating...");
-    }
-    //Testing-------------------------------------------------------
-    if(receivedFromRControl && rc.state == 1 && rc.rotation == 0){
-      receivedFromRControl = false;
-      task_keepRotatingLeft = true;
-      ROS_INFO("Rotating completed.\n");
-    }
+    rControlReceiveCheck(0,-1,&task_keepRotatingLeft,rcState,rcRotation);
   }
   else if(!task_submergeXft2){}
   else if(!task_mode1Movement){}
@@ -1537,18 +1437,7 @@ void rControlStatusCallback(const auv_cal_state_la_2017::RControl rc){
   else if(!task_gate1_submergeXft){}
   else if(!task_gate1_findGate){}
   else if(!task_gate1_changeAngle){
-    if(!receivedFromRControl){
-      ROS_INFO("Sending commend to rotation_control - rotate according to fcd");
-    }
-    if(!receivedFromRControl && rc.state == 3 && rc.rotation == 0){
-      receivedFromRControl = true;
-      ROS_INFO("rotation_control message received - rotating...");
-    }
-    if(receivedFromRControl && rc.state == 1 && rc.rotation == 0){
-      receivedFromRControl = false;
-      task_gate1_changeAngle = true;
-      ROS_INFO("Rotating completed.\n");
-    }
+    rControlReceiveCheck(3,0,&task_gate1_changeAngle,rcState,rcRotation);
   }
   else if(!task_gate1_mode5Forward){}
   else if(!task_gate1_mode5Break){}
@@ -1557,19 +1446,7 @@ void rControlStatusCallback(const auv_cal_state_la_2017::RControl rc){
   else if(!task_square_mode5Movement1){}
   else if(!task_square_mode5Movement2){}
   else if(!task_square_rotateRightXd){
-    if(!receivedFromRControl){
-      ROS_INFO("Sending commend to rotation_control - rotate right x degrees");
-    }
-    if(!receivedFromRControl && rc.state == 2 && rc.rotation == angleToTurn){
-      receivedFromRControl = true;
-      ROS_INFO("rotation_control message received - rotating...");
-    }
-    if(receivedFromRControl && rc.state == 1 && rc.rotation == 0){
-      receivedFromRControl = false;
-      task_square_rotateRightXd = true;
-      ROS_INFO("Rotating completed.\n");
-    }
-  }
+    rControlReceiveCheck(2,angleToTurn,&task_square_rotateRightXd,rcState,rcRotation);  }
   else if(!task_square_emergeToTop){}
   else if(!task_cv_findingObject_testing){}
   else if(!task_cv_getTargetInfo_1){
