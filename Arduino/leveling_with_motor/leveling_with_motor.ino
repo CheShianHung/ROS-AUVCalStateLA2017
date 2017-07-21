@@ -102,6 +102,7 @@ bool isTurningRight;
 bool isTurningLeft;
 bool keepTurningRight;
 bool keepTurningLeft;
+bool rControlMode3;
 bool mControlMode1;
 bool mControlMode2;
 bool mControlMode3;
@@ -234,6 +235,7 @@ void setup() {
   isTurningLeft = false;
   keepTurningRight = false;
   keepTurningLeft = false;
+  rControlMode3 = false;
   mControlMode1 = false;
   mControlMode2 = false;
   mControlMode3 = false;
@@ -418,7 +420,7 @@ void rControlCallback(const auv_cal_state_la_2017::RControl& rControl){
   dtostrf(rotation, 4, 2, rotationChar);
 
   if(rControl.state == 0){
-    if(!isTurningRight && !isTurningLeft){
+    if(!isTurningRight && !isTurningLeft && !rControlMode3){
       if(rotation == -1) {
         keepTurningLeft = true;
         //Testing---------------------------------------------------
@@ -438,17 +440,18 @@ void rControlCallback(const auv_cal_state_la_2017::RControl& rControl){
       nh.loginfo("Sub is still rotating. Command abort.");
   }
   else if(rControl.state == 1){
-    if(isTurningRight || isTurningLeft || keepTurningRight || keepTurningLeft){
+    if(isTurningRight || isTurningLeft || keepTurningRight || keepTurningLeft || rControlMode3){
       isTurningRight = false;
       isTurningLeft = false;
       keepTurningRight = false;
       keepTurningLeft = false;
+      rControlMode3 = false;
       nh.loginfo("Rotation control is now cancelled\n");
     }
     assignedYaw = yaw;
   }
   else if(rControl.state == 2){
-    if(!isTurningRight && !isTurningLeft){
+    if(!isTurningRight && !isTurningLeft && !rControlMode3){
       if(rotation == -1) {
         keepTurningRight = true;
         //Testing---------------------------------------------------------------
@@ -463,8 +466,18 @@ void rControlCallback(const auv_cal_state_la_2017::RControl& rControl){
       isTurningRight = true;
       nh.loginfo("Turning right...");
       nh.loginfo(rotationChar);
-      nh.loginfo("degree...(-1 means infinite)");
+      nh.loginfo("degree...(-1 means infinite)\n");
     }else
+      nh.loginfo("Sub is still rotating.Command abort.");
+  }
+  else if(rControl.state == 3){
+    if(!isTurningRight && !isTurningLeft && !rControlMode3){
+      rControlMode3 = true;
+      rotationTime = 3;
+      rotationTimer = 0;
+      nh.loginfo("Rotate with front camera horizontal distance.\n");
+    }
+    else
       nh.loginfo("Sub is still rotating.Command abort.");
   }
   rControlStatus.state = rControl.state;
@@ -787,7 +800,30 @@ void rotationControl(){
   float rotationError = 3;
   int fixedPower = 60;
 
-  if(keepTurningLeft){
+  //boundry from -245 to 245
+  if(rControlMode3){
+    if(frontCamHorizontalDistance != 999){
+      float mode3Power = abs(frontCamHorizontalDistance) / 245 * 200 + 40;
+      if(frontCamHorizontalDistance > 0){
+        T5.writeMicroseconds(1500 - mode3Power);
+        T7.writeMicroseconds(1500 + mode3Power);
+      }
+      else if(frontCamHorizontalDistance < 0){
+        T5.writeMicroseconds(1500 + mode3Power);
+        T7.writeMicroseconds(1500 - mode3Power);
+      }
+      if(frontCamHorizontalDistance < 15 && frontCamHorizontalDistance > -15){
+        rotationTimer += 0.05;
+        if(rotationTimer >= rotationTime)
+          rControlMode3 = false;
+      }
+      assignedYaw = yaw;
+    }
+    eles{
+      nh.loginfo("Invalid frontCamHorizontalDistance value.");
+    }
+  }
+  else if(keepTurningLeft){
     //Turn on left rotation motor with fixed power
     T5.writeMicroseconds(1500 + fixedPower);
     T7.writeMicroseconds(1500 - fixedPower);
@@ -833,12 +869,10 @@ void rotationControl(){
       rotateRightDynamically();
   }
   //No rotation
- if(!keepTurningRight && !keepTurningLeft && delta < rotationError){
-    if(isTurningRight || isTurningLeft || keepTurningRight || keepTurningLeft){
+ if(!keepTurningRight && !keepTurningLeft && !rControlMode3 && delta < rotationError){
+    if(isTurningRight || isTurningLeft){
       isTurningRight = false;
       isTurningLeft = false;
-      keepTurningRight = false;
-      keepTurningLeft = false;
       nh.loginfo("Assigned rotation reached.\n");
     }
     rControlStatus.state = 1;
