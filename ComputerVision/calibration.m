@@ -8,8 +8,10 @@
 
 function varargout = calibration()
 % global h
+delete(imaqfind);
 color_choice = 6;
-scale = 4;              % image processing scaling ratio
+global scale;
+scale = 1;              % image processing scaling ratio
 
 
 colors_list = { 'red',[255,0,0];        % 1
@@ -17,7 +19,7 @@ colors_list = { 'red',[255,0,0];        % 1
     'yellow',[199,204,120];      %3
     'pink',[255,102,102];
     'bouy',[101,240,127];
-    'gate',[11,18,35]};
+    'gate',[185,181,57]};
 
 color = uint8([]);
 color(1,1,:) = colors_list{color_choice,2}; % pick color from RGB choices
@@ -35,8 +37,11 @@ if nargout > 1, varargout{1} = h; end
 while ishghandle(h.fig)
     % get frame-by-frame
 %     tic;
-    frame = h.cap.read();
+    frame = getsnapshot(h.cap);
     if isempty(frame), break; end
+    frame = frame(1:480,163:652,:);
+    frame = imrotate(frame,180);
+    
     
     
     
@@ -115,31 +120,35 @@ h.saturation = get(h.slid(4), 'Value');
 % h.cap.Saturation = round(get(h.slid(3), 'Value'));
 
 % update UI
-set(h.txt(1), 'String',sprintf('Hue Threshold: %3d',h.huethresh));
-set(h.txt(2), 'String',sprintf('Sat Threshold: %3d',h.satthresh));
+set(h.txt(1), 'String',sprintf('Hue T: %3d',h.huethresh));
+set(h.txt(2), 'String',sprintf('Sat T: %3d',h.satthresh));
 set(h.txt(3), 'String',sprintf('Hue: %1.3f',h.hue));
-set(h.txt(4), 'String',sprintf('Saturation: %1.3f',h.saturation));
+set(h.txt(4), 'String',sprintf('Sat: %1.3f',h.saturation));
 % set(h.txt(3), 'String',sprintf('Saturation: %2d',h.cap.Saturation));
 drawnow;
 end
 
 function h = buildGUI(color)
-% global h
+global scale
 %BUILDGUI  Creates the UI
 
 % setup video capture
-cap = cv.VideoCapture(0);
+cap = videoinput('linuxvideo',1,'RGB24_744x480');
+        triggerconfig(cap,'manual');     % speeds up image acquisition for videoinput
+        start(cap);
 pause(1);
-assert(cap.isOpened());
+% assert(cap.isOpened());
 
 % video settings
-frame = cap.read();
+frame = getsnapshot(cap);
 assert(~isempty(frame));
+frame = frame(1:480,163:652,:);
+frame = imrotate(frame,180);
 % frame = imresize(frame,1/4);
 sz = size(frame);
-fourcc = char(typecast(int32(cap.FourCC), 'uint8'));
+% fourcc = char(typecast(int32(cap.FourCC), 'uint8'));
 % frame = logical(frame);
-frame = imresize(frame,1/4);
+frame = imresize(frame,1/scale);
 szm = size(frame);
 mask = false(szm(1:2));
 
@@ -151,7 +160,7 @@ h.saturation = color(:,:,2);
 h.satthresh = 80;        % threshold sensitivity for saturation channel (0-255)
 h.huethresh = 20;        % threshold sensitivity for hue channel (0-255)
 h.cap = cap;
-h.fig = figure('Name',sprintf('Video Capture: %dx%d %s', sz(2), sz(1), fourcc), ...
+h.fig = figure('Name',sprintf('Video Capture: %dx%d', sz(2), sz(1)), ...
     'NumberTitle','off', 'Menubar','none', 'Resize','off', ...
     'Position',[200 200 sz(2) sz(1)+80-1]);
 if ~mexopencv.isOctave()
@@ -168,16 +177,16 @@ else
 end
 h.txt(1) = uicontrol('Parent',h.fig, 'Style','text', ...
     'Position',[5 5 130 20], 'FontSize',11, ...
-    'String',sprintf('Hue Threshold: %3d',h.huethresh));
+    'String',sprintf('Hue T: %3d',h.huethresh));
 h.txt(2) = uicontrol('Parent',h.fig, 'Style','text', ...
     'Position',[5 30 130 20], 'FontSize',11, ...
-    'String',sprintf('Sat Threshold: %3d',h.satthresh));
+    'String',sprintf('Sat T: %3d',h.satthresh));
 h.txt(3) = uicontrol('Parent',h.fig, 'Style','text', ...
     'Position',[5 55 130 20], 'FontSize',11, ...
     'String',sprintf('Hue: %1.3f',h.hue));
 h.txt(4) = uicontrol('Parent',h.fig, 'Style','text', ...
     'Position',[5 80 130 20], 'FontSize',11, ...
-    'String',sprintf('Saturation: %1.3f',h.saturation));
+    'String',sprintf('Sat: %1.3f',h.saturation));
 h.slid(1) = uicontrol('Parent',h.fig, 'Style','slider', ...
     'Position',[135 5 sz(2)-135-5 20], 'Value',h.huethresh, ...
     'Min',0, 'Max',255, 'SliderStep',[1 10]./(255-0));
