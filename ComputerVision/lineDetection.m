@@ -147,6 +147,7 @@ while(found)
 		img = step(shapeInserter, img, bbox);
 		imshow(img); 
 		clear img;
-	end
+    end
+    clear frame;  
 	found = true; 
 end
