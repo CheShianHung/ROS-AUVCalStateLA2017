@@ -4,6 +4,7 @@
 #include <auv_cal_state_la_2017/HControl.h>
 #include <auv_cal_state_la_2017/RControl.h>
 #include <auv_cal_state_la_2017/MControl.h>
+#include <auv_cal_state_la_2017/Rotation.h>
 #include <auv_cal_state_la_2017/FrontCamDistance.h>
 #include <auv_cal_state_la_2017/BottomCamDistance.h>
 #include <Servo.h>
@@ -75,8 +76,10 @@ float dutyCycl_orient;
 float assignedYaw;
 
 //Initialize ROS node
-const float rotationUpperBound = 166.2;
-const float rotationLowerBound = -193.8;
+//const float rotationUpperBound = 166.2;
+//const float rotationLowerBound = -193.8;
+const float rotationUpperBound = 180;
+const float rotationLowerBound = -180;
 const float topDepth = 0.5;
 const float bottomDepth = 12;
 int mControlDirection;
@@ -120,7 +123,7 @@ float positionY = 0;
 
 ros::NodeHandle nh;
 std_msgs::Float32 currentDepth;
-std_msgs::Float32 currentRotation;
+//std_msgs::Float32 currentRotation;
 auv_cal_state_la_2017::HControl hControlStatus;
 auv_cal_state_la_2017::RControl rControlStatus;
 auv_cal_state_la_2017::MControl mControlStatus;
@@ -129,16 +132,18 @@ ros::Publisher hControlPublisher("height_control_status", &hControlStatus);     
 ros::Publisher rControlPublisher("rotation_control_status", &rControlStatus);   //int: state, float: rotation
 ros::Publisher mControlPublisher("movement_control_status", &mControlStatus);   //int: state, int: direction, float: distance
 ros::Publisher currentDepthPublisher("current_depth", &currentDepth);           //float: depth
-ros::Publisher currentRotationPublisher("current_rotation", &currentRotation);  //float: rotation
+//ros::Publisher currentRotationPublisher("current_rotation", &currentRotation);  //float: rotation
 
 void hControlCallback(const auv_cal_state_la_2017::HControl& hControl);
 void rControlCallback(const auv_cal_state_la_2017::RControl& rControl);
 void mControlCallback(const auv_cal_state_la_2017::MControl& mControl);
+void rotationCallback(const auv_cal_state_la_2017::Rotation& rotation);
 void frontCamDistanceCallback(const auv_cal_state_la_2017::FrontCamDistance& frontCamDistance);
 void bottomCamDistanceCallback(const auv_cal_state_la_2017::BottomCamDistance& bottomCamDistance);
 ros::Subscriber<auv_cal_state_la_2017::HControl> hControlSubscriber("height_control", &hControlCallback);   //int: state, float: depth
 ros::Subscriber<auv_cal_state_la_2017::RControl> rControlSubscriber("rotation_control", &rControlCallback); //int: state, float: rotation
 ros::Subscriber<auv_cal_state_la_2017::MControl> mControlSubscriber("movement_control", &mControlCallback);
+ros::Subscriber<auv_cal_state_la_2017::Rotation> rotationSubscriber("current_rotation", &rotationCallback);
 ros::Subscriber<auv_cal_state_la_2017::FrontCamDistance> frontCamDistanceSubscriber("front_cam_distance", &frontCamDistanceCallback);
 ros::Subscriber<auv_cal_state_la_2017::BottomCamDistance> bottomCamDistanceSubscriber("bottom_cam_distance", &bottomCamDistanceCallback);
 
@@ -248,7 +253,9 @@ void setup() {
 
   //Testing------------------
   feetDepth_read = 0;
-  yaw = 0;
+  roll = 999;
+  pitch = 999;
+  yaw = 999;
   positionX = 0;
   positionY = 0;
 
@@ -259,7 +266,7 @@ void setup() {
   //assignedYaw = -191.5;
   //subIsReady = true;
   assignedYaw = yaw;
-  currentRotation.data = yaw;
+//  currentRotation.data = yaw;
 
   hControlStatus.state = 1;
   hControlStatus.depth = 0;
@@ -282,43 +289,44 @@ void setup() {
   nh.subscribe(hControlSubscriber);
   nh.subscribe(rControlSubscriber);
   nh.subscribe(mControlSubscriber);
+  nh.subscribe(rotationSubscriber);
   nh.advertise(hControlPublisher);
   nh.advertise(rControlPublisher);
   nh.advertise(mControlPublisher);
   nh.advertise(currentDepthPublisher);
-  nh.advertise(currentRotationPublisher);
+//  nh.advertise(currentRotationPublisher);
 
-  initializeIMU();
-
+//  initializeIMU();
+//
   sensor.init();
   sensor.setFluidDensity(997); // kg/m^3 (997 freshwater, 1029 for seawater)
 
-  nh.loginfo("Data is ready.");
+//  nh.loginfo("Data is ready.");
   nh.loginfo("Sub is staying. Waiting to receive data from master...\n");
 
 }
 
 void loop() {
 
-  gettingRawData();
-  sensor.read();
-  //Timer
-  Now = micros();
-  deltat = ((Now - lastUpdate)/1000000.0f); // set integration time by time elapsed since last filter update
-  lastUpdate = Now;
-  // Sensors x- and y-axes are aligned but magnetometer z-axis (+ down) is opposite to z-axis (+ up) of accelerometer and gyro!
-  // This is ok by aircraft orientation standards!
-  // Pass gyro rate as rad/s
-  MahonyQuaternionUpdate(ax, ay, az, gx*PI/180.0f, gy*PI/180.0f, gz*PI/180.0f, mx, my, mz);
-
-  //yaw   = atan2(2.0f * (q[1] * q[2] + q[0] * q[3]), q[0] * q[0] + q[1] * q[1] - q[2] * q[2] - q[3] * q[3]);
-  pitch = -asin(2.0f * (q[1] * q[3] - q[0] * q[2]));
-  roll  = atan2(2.0f * (q[0] * q[1] + q[2] * q[3]), q[0] * q[0] - q[1] * q[1] - q[2] * q[2] + q[3] * q[3]);
-  pitch *= 180.0f / PI;
-  //yaw   *= 180.0f / PI;
-  //yaw   -= 13.8; // Declination at Danville, California is 13 degrees 48 minutes and 47 seconds on 2014-04-04
-  roll  *= 180.0f / PI;
-  pitch -= 7.1;
+//  gettingRawData();
+//  sensor.read();
+//  //Timer
+//  Now = micros();
+//  deltat = ((Now - lastUpdate)/1000000.0f); // set integration time by time elapsed since last filter update
+//  lastUpdate = Now;
+//  // Sensors x- and y-axes are aligned but magnetometer z-axis (+ down) is opposite to z-axis (+ up) of accelerometer and gyro!
+//  // This is ok by aircraft orientation standards!
+//  // Pass gyro rate as rad/s
+//  MahonyQuaternionUpdate(ax, ay, az, gx*PI/180.0f, gy*PI/180.0f, gz*PI/180.0f, mx, my, mz);
+//
+//  //yaw   = atan2(2.0f * (q[1] * q[2] + q[0] * q[3]), q[0] * q[0] + q[1] * q[1] - q[2] * q[2] - q[3] * q[3]);
+//  pitch = -asin(2.0f * (q[1] * q[3] - q[0] * q[2]));
+//  roll  = atan2(2.0f * (q[0] * q[1] + q[2] * q[3]), q[0] * q[0] - q[1] * q[1] - q[2] * q[2] + q[3] * q[3]);
+//  pitch *= 180.0f / PI;
+//  //yaw   *= 180.0f / PI;
+//  //yaw   -= 13.8; // Declination at Danville, California is 13 degrees 48 minutes and 47 seconds on 2014-04-04
+//  roll  *= 180.0f / PI;
+//  pitch -= 7.1;
 
   //Set the display outputs for roll, pitch, and yaw
   LcdXY(40, 0);
@@ -349,12 +357,23 @@ void loop() {
   //Update and publish current data to master
   currentDepth.data = feetDepth_read;
   currentDepthPublisher.publish(&currentDepth);
-  currentRotation.data = yaw;
-  currentRotationPublisher.publish(&currentRotation);
+//  currentRotation.data = yaw;
+//  currentRotationPublisher.publish(&currentRotation);
 
   nh.spinOnce();
 
   delay(10);
+}
+
+
+void rotationCallback(const auv_cal_state_la_2017::Rotation& rotation){
+  roll = rotation.roll;
+  pitch = rotation.pitch;
+  yaw = rotation.yaw;
+//  char yawChar[11];
+//  dtostrf(yaw, 4, 2, yawChar);
+//  nh.loginfo("yaw: ");
+//  nh.loginfo(yawChar);
 }
 
 
@@ -427,10 +446,10 @@ void rControlCallback(const auv_cal_state_la_2017::RControl& rControl){
         rotationTimer = 0;
       }
       else{
-        if (yaw + rotation >= rotationUpperBound)
-          assignedYaw = yaw + rotation - 360;
+        if (yaw - rotation <= rotationLowerBound)
+          assignedYaw = yaw - rotation + 360;
         else
-          assignedYaw = yaw + rotation;
+          assignedYaw = yaw - rotation;
       }
       isTurningLeft = true;
       nh.loginfo("Turning left...");
@@ -458,10 +477,10 @@ void rControlCallback(const auv_cal_state_la_2017::RControl& rControl){
         rotationTimer = 0;
       }
       else{
-        if (yaw - rotation < rotationLowerBound)
-          assignedYaw = yaw - rotation + 360;
+        if (yaw + rotation > rotationUpperBound)
+          assignedYaw = yaw + rotation - 360;
         else
-          assignedYaw = yaw - rotation;
+          assignedYaw = yaw + rotation;
       }
       isTurningRight = true;
       nh.loginfo("Turning right...");
@@ -819,7 +838,7 @@ void rotationControl(){
       }
       assignedYaw = yaw;
     }
-    eles{
+    else{
       nh.loginfo("Invalid frontCamHorizontalDistance value.");
     }
   }
@@ -850,23 +869,23 @@ void rotationControl(){
 //      yaw +=360;
   }
   // AutoRotation to the assignedYaw with 1 degree error tolerance
-  else if(delta > 1){
+  else if(delta > 2){
     if(yaw + delta > rotationUpperBound){
       if(yaw - delta == assignedYaw)
-        rotateRightDynamically();
-      else
         rotateLeftDynamically();
+      else
+        rotateRightDynamically();
     }
     else if(yaw - delta < rotationLowerBound){
       if(yaw + delta == assignedYaw)
-        rotateLeftDynamically();
-      else
         rotateRightDynamically();
+      else
+        rotateLeftDynamically();
     }
     else if(yaw < assignedYaw)
-      rotateLeftDynamically();
-    else
       rotateRightDynamically();
+    else
+      rotateLeftDynamically();
   }
   //No rotation
  if(!keepTurningRight && !keepTurningLeft && !rControlMode3 && delta < rotationError){
@@ -1152,9 +1171,10 @@ void rotateLeftDynamically(){
     T5.writeMicroseconds(1500 + rotatePower);
     T7.writeMicroseconds(1500 - rotatePower);
   }
+  nh.loginfo("rotate left");
   //Testing----------------------------
-  yaw += 1;
-  if(yaw > rotationUpperBound) yaw -= 360;
+  //yaw += 1;
+  //if(yaw > rotationUpperBound) yaw -= 360;
 
 }
 
@@ -1169,9 +1189,10 @@ void rotateRightDynamically(){
     T5.writeMicroseconds(1500 - rotatePower);
     T7.writeMicroseconds(1500 + rotatePower);
   }
+  nh.loginfo("rotate right");
   //Testing----------------------------
-  yaw -= 1;
-  if(yaw < rotationLowerBound) yaw +=360;
+  //yaw -= 1;
+  //if(yaw < rotationLowerBound) yaw +=360;
 
 }
 
@@ -1195,70 +1216,70 @@ float degreeToTurn(){
 }
 
 
-void gettingRawData(){
+//void gettingRawData(){
+//
+//  if(digitalRead(DRDYG)) {  // When new gyro data is ready
+//  dof.readGyro();           // Read raw gyro data
+//    gx = dof.calcGyro(dof.gx) - gbias[0];   // Convert to degrees per seconds, remove gyro biases
+//    gy = dof.calcGyro(dof.gy) - gbias[1];
+//    gz = dof.calcGyro(dof.gz) - gbias[2];
+//  }
+//
+//  if(digitalRead(INT1XM)) {  // When new accelerometer data is ready
+//    dof.readAccel();         // Read raw accelerometer data
+//    ax = dof.calcAccel(dof.ax) - abias[0];   // Convert to g's, remove accelerometer biases
+//    ay = dof.calcAccel(dof.ay) - abias[1];
+//    az = dof.calcAccel(dof.az) - abias[2];
+//  }
+//
+//  if(digitalRead(INT2XM)) {  // When new magnetometer data is ready
+//    dof.readMag();           // Read raw magnetometer data
+//    mx = dof.calcMag(dof.mx);     // Convert to Gauss and correct for calibration
+//    my = dof.calcMag(dof.my);
+//    mz = dof.calcMag(dof.mz);
+//
+//    dof.readTemp();
+//    temperature = 21.0 + (float) dof.temperature/8.; // slope is 8 LSB per degree C, just guessing at the intercept
+//  }
+//
+//}
 
-  if(digitalRead(DRDYG)) {  // When new gyro data is ready
-  dof.readGyro();           // Read raw gyro data
-    gx = dof.calcGyro(dof.gx) - gbias[0];   // Convert to degrees per seconds, remove gyro biases
-    gy = dof.calcGyro(dof.gy) - gbias[1];
-    gz = dof.calcGyro(dof.gz) - gbias[2];
-  }
-
-  if(digitalRead(INT1XM)) {  // When new accelerometer data is ready
-    dof.readAccel();         // Read raw accelerometer data
-    ax = dof.calcAccel(dof.ax) - abias[0];   // Convert to g's, remove accelerometer biases
-    ay = dof.calcAccel(dof.ay) - abias[1];
-    az = dof.calcAccel(dof.az) - abias[2];
-  }
-
-  if(digitalRead(INT2XM)) {  // When new magnetometer data is ready
-    dof.readMag();           // Read raw magnetometer data
-    mx = dof.calcMag(dof.mx);     // Convert to Gauss and correct for calibration
-    my = dof.calcMag(dof.my);
-    mz = dof.calcMag(dof.mz);
-
-    dof.readTemp();
-    temperature = 21.0 + (float) dof.temperature/8.; // slope is 8 LSB per degree C, just guessing at the intercept
-  }
-
-}
-
-void initializeIMU(){
-
-  uint32_t status = dof.begin();
-  delay(2000);
-
-  // Set data output ranges; choose lowest ranges for maximum resolution
-  // Accelerometer scale can be: A_SCALE_2G, A_SCALE_4G, A_SCALE_6G, A_SCALE_8G, or A_SCALE_16G
-  dof.setAccelScale(dof.A_SCALE_2G);
-  // Gyro scale can be:  G_SCALE__245, G_SCALE__500, or G_SCALE__2000DPS
-  dof.setGyroScale(dof.G_SCALE_245DPS);
-  // Magnetometer scale can be: M_SCALE_2GS, M_SCALE_4GS, M_SCALE_8GS, M_SCALE_12GS
-  dof.setMagScale(dof.M_SCALE_2GS);
-
-  // Set output data rates
-  // Accelerometer output data rate (ODR) can be: A_ODR_3125 (3.225 Hz), A_ODR_625 (6.25 Hz), A_ODR_125 (12.5 Hz), A_ODR_25, A_ODR_50,
-  //                                              A_ODR_100,  A_ODR_200, A_ODR_400, A_ODR_800, A_ODR_1600 (1600 Hz)
-  dof.setAccelODR(dof.A_ODR_200); // Set accelerometer update rate at 100 Hz
-  // Accelerometer anti-aliasing filter rate can be 50, 194, 362, or 763 Hz
-  // Anti-aliasing acts like a low-pass filter allowing oversampling of accelerometer and rejection of high-frequency spurious noise.
-  // Strategy here is to effectively oversample accelerometer at 100 Hz and use a 50 Hz anti-aliasing (low-pass) filter frequency
-  // to get a smooth ~150 Hz filter update rate
-  dof.setAccelABW(dof.A_ABW_50); // Choose lowest filter setting for low noise
-
-  // Gyro output data rates can be: 95 Hz (bandwidth 12.5 or 25 Hz), 190 Hz (bandwidth 12.5, 25, 50, or 70 Hz)
-  //                                 380 Hz (bandwidth 20, 25, 50, 100 Hz), or 760 Hz (bandwidth 30, 35, 50, 100 Hz)
-  dof.setGyroODR(dof.G_ODR_190_BW_125);  // Set gyro update rate to 190 Hz with the smallest bandwidth for low noise
-
-  // Magnetometer output data rate can be: 3.125 (ODR_3125), 6.25 (ODR_625), 12.5 (ODR_125), 25, 50, or 100 Hz
-  dof.setMagODR(dof.M_ODR_125); // Set magnetometer to update every 80 ms
-
-  // Use the FIFO mode to average accelerometer and gyro readings to calculate the biases, which can then be removed from
-  // all subsequent measurements.
-  dof.calLSM9DS0(gbias, abias);
-
-}
-
+//void initializeIMU(){
+//
+//  uint32_t status = dof.begin();
+//  delay(2000);
+//
+//  // Set data output ranges; choose lowest ranges for maximum resolution
+//  // Accelerometer scale can be: A_SCALE_2G, A_SCALE_4G, A_SCALE_6G, A_SCALE_8G, or A_SCALE_16G
+//  dof.setAccelScale(dof.A_SCALE_2G);
+//  // Gyro scale can be:  G_SCALE__245, G_SCALE__500, or G_SCALE__2000DPS
+//  dof.setGyroScale(dof.G_SCALE_245DPS);
+//  // Magnetometer scale can be: M_SCALE_2GS, M_SCALE_4GS, M_SCALE_8GS, M_SCALE_12GS
+//  dof.setMagScale(dof.M_SCALE_2GS);
+//
+//  // Set output data rates
+//  // Accelerometer output data rate (ODR) can be: A_ODR_3125 (3.225 Hz), A_ODR_625 (6.25 Hz), A_ODR_125 (12.5 Hz), A_ODR_25, A_ODR_50,
+//  //                                              A_ODR_100,  A_ODR_200, A_ODR_400, A_ODR_800, A_ODR_1600 (1600 Hz)
+//  dof.setAccelODR(dof.A_ODR_200); // Set accelerometer update rate at 100 Hz
+//  // Accelerometer anti-aliasing filter rate can be 50, 194, 362, or 763 Hz
+//  // Anti-aliasing acts like a low-pass filter allowing oversampling of accelerometer and rejection of high-frequency spurious noise.
+//  // Strategy here is to effectively oversample accelerometer at 100 Hz and use a 50 Hz anti-aliasing (low-pass) filter frequency
+//  // to get a smooth ~150 Hz filter update rate
+//  dof.setAccelABW(dof.A_ABW_50); // Choose lowest filter setting for low noise
+//
+//  // Gyro output data rates can be: 95 Hz (bandwidth 12.5 or 25 Hz), 190 Hz (bandwidth 12.5, 25, 50, or 70 Hz)
+//  //                                 380 Hz (bandwidth 20, 25, 50, 100 Hz), or 760 Hz (bandwidth 30, 35, 50, 100 Hz)
+//  dof.setGyroODR(dof.G_ODR_190_BW_125);  // Set gyro update rate to 190 Hz with the smallest bandwidth for low noise
+//
+//  // Magnetometer output data rate can be: 3.125 (ODR_3125), 6.25 (ODR_625), 12.5 (ODR_125), 25, 50, or 100 Hz
+//  dof.setMagODR(dof.M_ODR_125); // Set magnetometer to update every 80 ms
+//
+//  // Use the FIFO mode to average accelerometer and gyro readings to calculate the biases, which can then be removed from
+//  // all subsequent measurements.
+//  dof.calLSM9DS0(gbias, abias);
+//
+//}
+//
 void LcdWriteString(char *characters){
   while(*characters) LcdWriteCharacter(*characters++);
 }
@@ -1291,94 +1312,95 @@ void LcdXY(int x, int y){
   LcdWriteCmd(0x80 | x);
   LcdWriteCmd(0x40 | y);
 }
-void MahonyQuaternionUpdate(float ax, float ay, float az, float gx, float gy, float gz, float mx, float my, float mz){
 
-  float q1 = q[0], q2 = q[1], q3 = q[2], q4 = q[3];   // short name local variable for readability
-  float norm;
-  float hx, hy, bx, bz;
-  float vx, vy, vz, wx, wy, wz;
-  float ex, ey, ez;
-  float pa, pb, pc;
-
-  // Auxiliary variables to avoid repeated arithmetic
-  float q1q1 = q1 * q1;
-  float q1q2 = q1 * q2;
-  float q1q3 = q1 * q3;
-  float q1q4 = q1 * q4;
-  float q2q2 = q2 * q2;
-  float q2q3 = q2 * q3;
-  float q2q4 = q2 * q4;
-  float q3q3 = q3 * q3;
-  float q3q4 = q3 * q4;
-  float q4q4 = q4 * q4;
-
-  // Normalise accelerometer measurement
-  norm = sqrt(ax * ax + ay * ay + az * az);
-  if (norm == 0.0f) return; // handle NaN
-  norm = 1.0f / norm;        // use reciprocal for division
-  ax *= norm;
-  ay *= norm;
-  az *= norm;
-
-  // Normalise magnetometer measurement
-  norm = sqrt(mx * mx + my * my + mz * mz);
-  if (norm == 0.0f) return; // handle NaN
-  norm = 1.0f / norm;        // use reciprocal for division
-  mx *= norm;
-  my *= norm;
-  mz *= norm;
-
-  // Reference direction of Earth's magnetic field
-  hx = 2.0f * mx * (0.5f - q3q3 - q4q4) + 2.0f * my * (q2q3 - q1q4) + 2.0f * mz * (q2q4 + q1q3);
-  hy = 2.0f * mx * (q2q3 + q1q4) + 2.0f * my * (0.5f - q2q2 - q4q4) + 2.0f * mz * (q3q4 - q1q2);
-  bx = sqrt((hx * hx) + (hy * hy));
-  bz = 2.0f * mx * (q2q4 - q1q3) + 2.0f * my * (q3q4 + q1q2) + 2.0f * mz * (0.5f - q2q2 - q3q3);
-
-  // Estimated direction of gravity and magnetic field
-  vx = 2.0f * (q2q4 - q1q3);
-  vy = 2.0f * (q1q2 + q3q4);
-  vz = q1q1 - q2q2 - q3q3 + q4q4;
-  wx = 2.0f * bx * (0.5f - q3q3 - q4q4) + 2.0f * bz * (q2q4 - q1q3);
-  wy = 2.0f * bx * (q2q3 - q1q4) + 2.0f * bz * (q1q2 + q3q4);
-  wz = 2.0f * bx * (q1q3 + q2q4) + 2.0f * bz * (0.5f - q2q2 - q3q3);
-
-  // Error is cross product between estimated direction and measured direction of gravity
-  ex = (ay * vz - az * vy) + (my * wz - mz * wy);
-  ey = (az * vx - ax * vz) + (mz * wx - mx * wz);
-  ez = (ax * vy - ay * vx) + (mx * wy - my * wx);
-  if (Ki > 0.0f)
-  {
-    eInt[0] += ex;      // accumulate integral error
-    eInt[1] += ey;
-    eInt[2] += ez;
-  }
-  else
-  {
-    eInt[0] = 0.0f;     // prevent integral wind up
-    eInt[1] = 0.0f;
-    eInt[2] = 0.0f;
-  }
-
-  // Apply feedback terms
-  gx = gx + Kp * ex + Ki * eInt[0];
-  gy = gy + Kp * ey + Ki * eInt[1];
-  gz = gz + Kp * ez + Ki * eInt[2];
-
-  // Integrate rate of change of quaternion
-  pa = q2;
-  pb = q3;
-  pc = q4;
-  q1 = q1 + (-q2 * gx - q3 * gy - q4 * gz) * (0.5f * deltat);
-  q2 = pa + (q1 * gx + pb * gz - pc * gy) * (0.5f * deltat);
-  q3 = pb + (q1 * gy - pa * gz + pc * gx) * (0.5f * deltat);
-  q4 = pc + (q1 * gz + pa * gy - pb * gx) * (0.5f * deltat);
-
-  // Normalise quaternion
-  norm = sqrt(q1 * q1 + q2 * q2 + q3 * q3 + q4 * q4);
-  norm = 1.0f / norm;
-  q[0] = q1 * norm;
-  q[1] = q2 * norm;
-  q[2] = q3 * norm;
-  q[3] = q4 * norm;
-
-}
+//void MahonyQuaternionUpdate(float ax, float ay, float az, float gx, float gy, float gz, float mx, float my, float mz){
+//
+//  float q1 = q[0], q2 = q[1], q3 = q[2], q4 = q[3];   // short name local variable for readability
+//  float norm;
+//  float hx, hy, bx, bz;
+//  float vx, vy, vz, wx, wy, wz;
+//  float ex, ey, ez;
+//  float pa, pb, pc;
+//
+//  // Auxiliary variables to avoid repeated arithmetic
+//  float q1q1 = q1 * q1;
+//  float q1q2 = q1 * q2;
+//  float q1q3 = q1 * q3;
+//  float q1q4 = q1 * q4;
+//  float q2q2 = q2 * q2;
+//  float q2q3 = q2 * q3;
+//  float q2q4 = q2 * q4;
+//  float q3q3 = q3 * q3;
+//  float q3q4 = q3 * q4;
+//  float q4q4 = q4 * q4;
+//
+//  // Normalise accelerometer measurement
+//  norm = sqrt(ax * ax + ay * ay + az * az);
+//  if (norm == 0.0f) return; // handle NaN
+//  norm = 1.0f / norm;        // use reciprocal for division
+//  ax *= norm;
+//  ay *= norm;
+//  az *= norm;
+//
+//  // Normalise magnetometer measurement
+//  norm = sqrt(mx * mx + my * my + mz * mz);
+//  if (norm == 0.0f) return; // handle NaN
+//  norm = 1.0f / norm;        // use reciprocal for division
+//  mx *= norm;
+//  my *= norm;
+//  mz *= norm;
+//
+//  // Reference direction of Earth's magnetic field
+//  hx = 2.0f * mx * (0.5f - q3q3 - q4q4) + 2.0f * my * (q2q3 - q1q4) + 2.0f * mz * (q2q4 + q1q3);
+//  hy = 2.0f * mx * (q2q3 + q1q4) + 2.0f * my * (0.5f - q2q2 - q4q4) + 2.0f * mz * (q3q4 - q1q2);
+//  bx = sqrt((hx * hx) + (hy * hy));
+//  bz = 2.0f * mx * (q2q4 - q1q3) + 2.0f * my * (q3q4 + q1q2) + 2.0f * mz * (0.5f - q2q2 - q3q3);
+//
+//  // Estimated direction of gravity and magnetic field
+//  vx = 2.0f * (q2q4 - q1q3);
+//  vy = 2.0f * (q1q2 + q3q4);
+//  vz = q1q1 - q2q2 - q3q3 + q4q4;
+//  wx = 2.0f * bx * (0.5f - q3q3 - q4q4) + 2.0f * bz * (q2q4 - q1q3);
+//  wy = 2.0f * bx * (q2q3 - q1q4) + 2.0f * bz * (q1q2 + q3q4);
+//  wz = 2.0f * bx * (q1q3 + q2q4) + 2.0f * bz * (0.5f - q2q2 - q3q3);
+//
+//  // Error is cross product between estimated direction and measured direction of gravity
+//  ex = (ay * vz - az * vy) + (my * wz - mz * wy);
+//  ey = (az * vx - ax * vz) + (mz * wx - mx * wz);
+//  ez = (ax * vy - ay * vx) + (mx * wy - my * wx);
+//  if (Ki > 0.0f)
+//  {
+//    eInt[0] += ex;      // accumulate integral error
+//    eInt[1] += ey;
+//    eInt[2] += ez;
+//  }
+//  else
+//  {
+//    eInt[0] = 0.0f;     // prevent integral wind up
+//    eInt[1] = 0.0f;
+//    eInt[2] = 0.0f;
+//  }
+//
+//  // Apply feedback terms
+//  gx = gx + Kp * ex + Ki * eInt[0];
+//  gy = gy + Kp * ey + Ki * eInt[1];
+//  gz = gz + Kp * ez + Ki * eInt[2];
+//
+//  // Integrate rate of change of quaternion
+//  pa = q2;
+//  pb = q3;
+//  pc = q4;
+//  q1 = q1 + (-q2 * gx - q3 * gy - q4 * gz) * (0.5f * deltat);
+//  q2 = pa + (q1 * gx + pb * gz - pc * gy) * (0.5f * deltat);
+//  q3 = pb + (q1 * gy - pa * gz + pc * gx) * (0.5f * deltat);
+//  q4 = pc + (q1 * gz + pa * gy - pb * gx) * (0.5f * deltat);
+//
+//  // Normalise quaternion
+//  norm = sqrt(q1 * q1 + q2 * q2 + q3 * q3 + q4 * q4);
+//  norm = 1.0f / norm;
+//  q[0] = q1 * norm;
+//  q[1] = q2 * norm;
+//  q[2] = q3 * norm;
+//  q[3] = q4 * norm;
+//
+//}

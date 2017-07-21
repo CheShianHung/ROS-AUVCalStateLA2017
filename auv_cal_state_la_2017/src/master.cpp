@@ -5,6 +5,7 @@
 #include "auv_cal_state_la_2017/HControl.h"
 #include "auv_cal_state_la_2017/RControl.h"
 #include "auv_cal_state_la_2017/MControl.h"
+#include "auv_cal_state_la_2017/Rotation.h"
 #include "auv_cal_state_la_2017/FrontCamDistance.h"
 #include "auv_cal_state_la_2017/BottomCamDistance.h"
 #include "auv_cal_state_la_2017/TargetInfo.h"
@@ -59,7 +60,7 @@ auv_cal_state_la_2017::CVInfo cvInfo;
 
 //Subscriber callback functions
 void currentDepthCallback(const std_msgs::Float32& currentDepth);
-void currentRotationCallback(const std_msgs::Float32& currentRotation);
+void currentRotationCallback(const auv_cal_state_la_2017::Rotation rotation);
 void pControlStatusCallback(const std_msgs::Int32 pc);
 void hControlStatusCallback(const auv_cal_state_la_2017::HControl hc);
 void rControlStatusCallback(const auv_cal_state_la_2017::RControl rc);
@@ -84,7 +85,9 @@ int pneumaticsNum;
 int hydrophoneDirection;
 int targetInfoCounter;
 float depth;
-float rotation;
+float roll;
+float pitch;
+float yaw;
 float angleToTurn;
 float heightToMove;
 float motorPower;
@@ -208,7 +211,9 @@ int main(int argc, char **argv){
   allNodesAreReady = true;
 
   depth = 0;
-  rotation = 0;
+  roll = 0;
+  pitch = 0;
+  yaw = 0;
   directionToMove = 0;
   pneumaticsNum = 0;
   angleToTurn = 0;
@@ -1109,7 +1114,7 @@ void currentDepthCallback(const std_msgs::Float32& currentDepth){
 
 
 
-void currentRotationCallback(const std_msgs::Float32& currentRotation){
+void currentRotationCallback(const auv_cal_state_la_2017::Rotation rotation){
   if(!allNodesAreReady){
     if(!checkingCurrentRotation){
       checkingCurrentRotation = true;
@@ -1118,7 +1123,9 @@ void currentRotationCallback(const std_msgs::Float32& currentRotation){
     }
   }
 
-  rotation = currentRotation.data;
+  roll = rotation.roll;
+  pitch = rotation.pitch;
+  yaw = rotation.yaw;
 }
 
 
