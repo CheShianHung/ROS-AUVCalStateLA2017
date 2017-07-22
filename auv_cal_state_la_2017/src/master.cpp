@@ -88,6 +88,8 @@ float depth;
 float roll;
 float pitch;
 float yaw;
+float cvTime;
+float cvTimer;
 float angleToTurn;
 float heightToMove;
 float motorPower;
@@ -167,6 +169,7 @@ bool task_square_rotateRightXd;
 bool task_square_emergeToTop;
 
 bool task_cv_findingObject_testing;
+bool task_cv_getDistance_testing;
 bool task_cv_getTargetInfo_1;
 bool task_cv_beforeCenter_1;
 bool task_cv_centering_1;
@@ -214,6 +217,8 @@ int main(int argc, char **argv){
   roll = 0;
   pitch = 0;
   yaw = 0;
+  cvTime = 0;
+  cvTimer = 0;
   directionToMove = 0;
   pneumaticsNum = 0;
   angleToTurn = 0;
@@ -231,16 +236,16 @@ int main(int argc, char **argv){
   bottomCamVerticalDistance = 0;
 
   task0_submergeToWater = true;
-  task_turnOnMotors = false;
+  task_turnOnMotors = true;
   task_submergeXft = true;
   task_emergeXft = true;
   task_emergeToTop = true;
-  task_rotateRightXd1 = false;
-  task_rotateRightXd2 = false;
-  task_rotateRightXd3 = false;
-  task_rotateLeftXd1 = false;
-  task_rotateLeftXd2 = false;
-  task_rotateLeftXd3 = false;
+  task_rotateRightXd1 = true;
+  task_rotateRightXd2 = true;
+  task_rotateRightXd3 = true;
+  task_rotateLeftXd1 = true;
+  task_rotateLeftXd2 = true;
+  task_rotateLeftXd3 = true;
   task_keepRotatingRight = true;
   task_keepRotatingLeft = true;
   task_submergeXft2 = true;
@@ -266,6 +271,7 @@ int main(int argc, char **argv){
   task_square_emergeToTop = true;
 
   task_cv_findingObject_testing = true;
+  task_cv_getDistance_testing = false;
   task_cv_getTargetInfo_1 = true;
   task_cv_beforeCenter_1 = true;
   task_cv_centering_1 = true;
@@ -880,17 +886,43 @@ int main(int argc, char **argv){
 
   resetVariables();
 
-//settingCVInfo(cameraNum,taskNum,givenColor,givenShape,givenLength,givenDistance)
+  //settingCVInfo(cameraNum,taskNum,givenColor,givenShape,givenLength,givenDistance)
   //Task =======================================================================
   while (ros::ok() && !task_cv_findingObject_testing){
     ROS_INFO("Finding object...");
     while(ros::ok() && !objectFound){
       settingCVInfo(1,1,2,0,49,60);
+      //settingCVInfo(1,2,2,0,49,60);
+      //settingCVInfo(1,4,6,0,0,0);
+      //settingCVInfo(1,4,7,0,0,0);
       cvInfoPublisher.publish(cvInfo);
       ros::spinOnce();
       loop_rate.sleep();
     }
     ROS_INFO("Mission code - object found.\n");
+  }
+
+  resetVariables();
+
+  //settingCVInfo(cameraNum,taskNum,givenColor,givenShape,givenLength,givenDistance)
+  //Task =======================================================================
+  cvTime = 30;
+  cvTimer = 0;
+  if(!task_cv_getDistance_testing)
+    ROS_INFO("Getting distance from computer vision.");
+  while (ros::ok() && !task_cv_getDistance_testing){
+    //settingCVInfo(1,1,2,0,49,60);
+    settingCVInfo(1,2,2,0,49,60);
+    //settingCVInfo(1,4,6,0,0,0);
+    //settingCVInfo(1,4,7,0,0,0);
+    cvInfoPublisher.publish(cvInfo);
+    ros::spinOnce();
+    loop_rate.sleep();
+    cvTimer += 0.1;
+    if(cvTimer >= cvTime){
+      task_cv_getDistance_testing = true;
+      ROS_INFO("Finish getting distance\n");
+    } 
   }
 
   resetVariables();
@@ -904,7 +936,7 @@ int main(int argc, char **argv){
     finishedHeightControl = false;
     ROS_INFO("Finding Object...");
     while(ros::ok() && !objectFound){
-      settingCVInfo(1,1,2,3,4,5);
+      settingCVInfo(1,1,2,3,4,5);    
       cvInfoPublisher.publish(cvInfo);
       ros::spinOnce();
       loop_rate.sleep();
@@ -1090,6 +1122,8 @@ void resetVariables(){
   objectFound = false;
   findingObject = false;
   targetInfoCounter = 0;
+  cvTime = 0;
+  cvTimer = 0;
 }
 
 
@@ -1240,6 +1274,7 @@ void pControlStatusCallback(const std_msgs::Int32 pc){
   else if(!task_square_rotateRightXd){}
   else if(!task_square_emergeToTop){}
   else if(!task_cv_findingObject_testing){}
+  else if(!task_cv_getDistance_testing){}
   else if(!task_cv_getTargetInfo_1){}
   else if(!task_cv_beforeCenter_1){}
   else if(!task_cv_centering_1){}
@@ -1346,6 +1381,7 @@ void hControlStatusCallback(const auv_cal_state_la_2017::HControl hc){
     hControlReceiveCheck(2,-1,&task_square_emergeToTop,hcState,hcDepth);
   }
   else if(!task_cv_findingObject_testing){}
+  else if(!task_cv_getDistance_testing){}
   else if(!task_cv_getTargetInfo_1){
     if(!doneHeightControl){
       if(!receivedFromHControl && hc.state != 1 && hc.depth == hControl.depth){
@@ -1456,6 +1492,7 @@ void rControlStatusCallback(const auv_cal_state_la_2017::RControl rc){
     rControlReceiveCheck(2,angleToTurn,&task_square_rotateRightXd,rcState,rcRotation);  }
   else if(!task_square_emergeToTop){}
   else if(!task_cv_findingObject_testing){}
+  else if(!task_cv_getDistance_testing){}
   else if(!task_cv_getTargetInfo_1){
     if(!doneRotationControl){
       if(!receivedFromRControl && rc.state != 1 && rc.rotation == rControl.rotation){
@@ -1613,6 +1650,7 @@ void mControlStatusCallback(const auv_cal_state_la_2017::MControl mc){
   else if(!task_square_rotateRightXd){}
   else if(!task_square_emergeToTop){}
   else if(!task_cv_findingObject_testing){}
+  else if(!task_cv_getDistance_testing){}
   else if(!task_cv_getTargetInfo_1){}
   else if(!task_cv_beforeCenter_1){
     if(!receivedFromMControl){
@@ -1716,6 +1754,7 @@ void targetInfoCallback(const auv_cal_state_la_2017::TargetInfo ti){
       heightToMove = ti.height;
     }
   }
+  else if(!task_cv_getDistance_testing){}
   else if(!task_cv_getTargetInfo_1){
     //Object found
     if(!objectFound && ti.state == 1){
@@ -1770,6 +1809,7 @@ void hydrophoneCallback(const auv_cal_state_la_2017::Hydrophone hy){
   else if(!task_square_rotateRightXd){}
   else if(!task_square_emergeToTop){}
   else if(!task_cv_findingObject_testing){}
+  else if(!task_cv_getDistance_testing){}
   else if(!task_cv_getTargetInfo_1){}
   else if(!task_cv_beforeCenter_1){}
   else if(!task_cv_centering_1){}
