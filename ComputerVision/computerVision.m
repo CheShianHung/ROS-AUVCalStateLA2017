@@ -369,6 +369,12 @@ switch msg.TaskNumber
         
         
         
+        
+        
+        
+        
+        %% While loop
+        
         %% Processing
         img = imrotate(img,180);
         blur = imresize(cv.medianBlur(img,'KSize',5),1/scale); % blur color image
