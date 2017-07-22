@@ -377,26 +377,11 @@ switch msg.TaskNumber
         cviMsg.CameraNumber = 1;
         while cviMsg.CameraNumber == 1
         
-<<<<<<< HEAD
-            %% Processing
-            img = imrotate(img,180);
-            blur = imresize(cv.medianBlur(img,'KSize',5),1/scale); % blur color image
-            HSV = rgb2hsv(blur);        % convert color image to LAB colorspace
-            HSV = uint8(HSV*255);
-=======
-        
-        
-        
-        
-        
-        %% While loop
-        
         %% Processing
         img = imrotate(img,180);
         blur = imresize(cv.medianBlur(img,'KSize',5),1/scale); % blur color image
         HSV = rgb2hsv(blur);        % convert color image to LAB colorspace
         HSV = uint8(HSV*255);
->>>>>>> 89e8ce4d31449618ef3dce102fb407a63ea202fb
         
         
             %% Color Threshold - filter out all unwanted color
