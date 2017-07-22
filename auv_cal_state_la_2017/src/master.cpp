@@ -176,6 +176,8 @@ bool task_cv_centering_1;
 
 bool task_hydrophone_finding;
 
+bool task_turnOffMotors;
+
 int main(int argc, char **argv){
 
   //Initializing ROS variables
@@ -235,48 +237,50 @@ int main(int argc, char **argv){
   bottomCamHorizontalDistance = 0;
   bottomCamVerticalDistance = 0;
 
-  task0_submergeToWater = true;
-  task_turnOnMotors = false;
-  task_submergeXft = false;
-  task_emergeXft = true;
-  task_emergeToTop = true;
-  task_rotateRightXd1 = false;
-  task_rotateRightXd2 = true;
-  task_rotateRightXd3 = true;
-  task_rotateLeftXd1 = false;
-  task_rotateLeftXd2 = true;
-  task_rotateLeftXd3 = true;
-  task_keepRotatingRight = true;
-  task_keepRotatingLeft = true;
-  task_submergeXft2 = true;
-  task_mode1Movement = true;
-  task_mode5Movement1 = false;
-  task_mode5Movement2 = false;
-  task_pneumaticsControl1 = true;
-  task_pneumaticsControl2 = true;
-  task_pneumaticsControl3 = true;
-  task_pneumaticsControl4 = true;
+  task0_submergeToWater         = true;
+  task_turnOnMotors             = false;
+  task_submergeXft              = true;
+  task_emergeXft                = true;
+  task_emergeToTop              = true;
+  task_rotateRightXd1           = true;
+  task_rotateRightXd2           = true;
+  task_rotateRightXd3           = true;
+  task_rotateLeftXd1            = true;
+  task_rotateLeftXd2            = true;
+  task_rotateLeftXd3            = true;
+  task_keepRotatingRight        = true;
+  task_keepRotatingLeft         = true;
+  task_submergeXft2             = true;
+  task_mode1Movement            = true;
+  task_mode5Movement1           = false;
+  task_mode5Movement2           = false;
+  task_pneumaticsControl1       = true;
+  task_pneumaticsControl2       = true;
+  task_pneumaticsControl3       = true;
+  task_pneumaticsControl4       = true;
 
-  task_gate1_submergeXft = true;
-  task_gate1_findGate = true;
-  task_gate1_changeAngle = true;
-  task_gate1_mode5Forward = true;
-  task_gate1_mode5Break = true;
-  task_gate1_emergeToTop = true;
+  task_gate1_submergeXft        = true;
+  task_gate1_findGate           = true;
+  task_gate1_changeAngle        = true;
+  task_gate1_mode5Forward       = true;
+  task_gate1_mode5Break         = true;
+  task_gate1_emergeToTop        = true;
 
-  task_square_submergeXft = true;
-  task_square_mode5Movement1 = true;
-  task_square_mode5Movement2 = true;
-  task_square_rotateRightXd = true;
-  task_square_emergeToTop = true;
+  task_square_submergeXft       = true;
+  task_square_mode5Movement1    = true;
+  task_square_mode5Movement2    = true;
+  task_square_rotateRightXd     = true;
+  task_square_emergeToTop       = true;
 
   task_cv_findingObject_testing = true;
-  task_cv_getDistance_testing = false;
-  task_cv_getTargetInfo_1 = true;
-  task_cv_beforeCenter_1 = true;
-  task_cv_centering_1 = true;
+  task_cv_getDistance_testing   = true;
+  task_cv_getTargetInfo_1       = true;
+  task_cv_beforeCenter_1        = true;
+  task_cv_centering_1           = true;
 
-  task_hydrophone_finding = true;
+  task_hydrophone_finding       = true;
+
+  task_turnOffMotors            = false;
 
 
   // ROS_INFO("Master starts running. Checking each topic...");
@@ -330,9 +334,9 @@ int main(int argc, char **argv){
 
   resetVariables();
   // breakBetweenTasks(60);
-
-  ROS_INFO("Turning on motors...");
+   
   //Task =======================================================================
+  if(!task_turnOffMotors) ROS_INFO("Turning on motors...");
   while(ros::ok() && !task_turnOnMotors){
     if(!receivedFromHControl){
       hControl.state = 4;
@@ -685,7 +689,7 @@ int main(int argc, char **argv){
 
   resetVariables();
 
-  if(task_gate1_findGate){
+  if(!task_gate1_findGate){
     ROS_INFO("Mission - Gate\n");
     for(int i = 0; i < 4; i++){
 
@@ -785,7 +789,7 @@ int main(int argc, char **argv){
   resetVariables();
 
 
-  //ROS_INFO("Starting mission code - square");
+  if(!task_square_submergeXft) ROS_INFO("Starting mission code - square");
   //Task =======================================================================
   heightToMove = 4;
   while(ros::ok() && !task_square_submergeXft){
@@ -802,73 +806,73 @@ int main(int argc, char **argv){
 
   resetVariables();
   if(!task_square_mode5Movement1){
-  for(int i = 0; i < 4; i++){
+    for(int i = 0; i < 4; i++){
 
-    //Task =======================================================================
-    motorPower = 100;
-    motorRunningTime = 8;
-    directionToMove = 1;
-    while (ros::ok() && !task_square_mode5Movement1){
-      if(!receivedFromMControl){
-        mControl.state = 5;
-        mControl.mDirection = directionToMove;
-        mControl.power = motorPower;
-        mControl.distance = 0;
-        mControl.runningTime = motorRunningTime;
-        mControlPublisher.publish(mControl);
+      //Task =======================================================================
+      motorPower = 100;
+      motorRunningTime = 8;
+      directionToMove = 1;
+      while (ros::ok() && !task_square_mode5Movement1){
+        if(!receivedFromMControl){
+          mControl.state = 5;
+          mControl.mDirection = directionToMove;
+          mControl.power = motorPower;
+          mControl.distance = 0;
+          mControl.runningTime = motorRunningTime;
+          mControlPublisher.publish(mControl);
+        }
+        settingCVInfo(0,0,0,0,0,0);
+        cvInfoPublisher.publish(cvInfo);
+        ros::spinOnce();
+        loop_rate.sleep();
       }
-      settingCVInfo(0,0,0,0,0,0);
-      cvInfoPublisher.publish(cvInfo);
-      ros::spinOnce();
-      loop_rate.sleep();
-    }
 
-    resetVariables();
+      resetVariables();
 
-    //Task =======================================================================
-    motorPower = 100;
-    motorRunningTime = 3;
-    directionToMove = 3;
-    while (ros::ok() && !task_square_mode5Movement2){
-      if(!receivedFromMControl){
-        mControl.state = 5;
-        mControl.mDirection = directionToMove;
-        mControl.power = motorPower;
-        mControl.distance = 0;
-        mControl.runningTime = motorRunningTime;
-        mControlPublisher.publish(mControl);
+      //Task =======================================================================
+      motorPower = 100;
+      motorRunningTime = 3;
+      directionToMove = 3;
+      while (ros::ok() && !task_square_mode5Movement2){
+        if(!receivedFromMControl){
+          mControl.state = 5;
+          mControl.mDirection = directionToMove;
+          mControl.power = motorPower;
+          mControl.distance = 0;
+          mControl.runningTime = motorRunningTime;
+          mControlPublisher.publish(mControl);
+        }
+        settingCVInfo(0,0,0,0,0,0);
+        cvInfoPublisher.publish(cvInfo);
+        ros::spinOnce();
+        loop_rate.sleep();
       }
-      settingCVInfo(0,0,0,0,0,0);
-      cvInfoPublisher.publish(cvInfo);
-      ros::spinOnce();
-      loop_rate.sleep();
-    }
 
-    resetVariables();
+      resetVariables();
 
-    //Task =======================================================================
-    angleToTurn = 90;
-    while (ros::ok() && !task_square_rotateRightXd){
-      if(!receivedFromRControl){
-        rControl.state = 2;
-        rControl.rotation = angleToTurn;
-        rControlPublisher.publish(rControl);
+      //Task =======================================================================
+      angleToTurn = 90;
+      while (ros::ok() && !task_square_rotateRightXd){
+        if(!receivedFromRControl){
+          rControl.state = 2;
+          rControl.rotation = angleToTurn;
+          rControlPublisher.publish(rControl);
+        }
+        settingCVInfo(0,0,0,0,0,0);
+        cvInfoPublisher.publish(cvInfo);
+        ros::spinOnce();
+        loop_rate.sleep();
       }
-      settingCVInfo(0,0,0,0,0,0);
-      cvInfoPublisher.publish(cvInfo);
-      ros::spinOnce();
-      loop_rate.sleep();
-    }
 
-    resetVariables();
+      resetVariables();
 
-    if(i != 3){
-      task_square_mode5Movement1 = false;
-      task_square_mode5Movement2 = false;
-      task_square_rotateRightXd = false;
+      if(i != 3){
+        task_square_mode5Movement1 = false;
+        task_square_mode5Movement2 = false;
+        task_square_rotateRightXd = false;
+      }
     }
   }
-}
 
   //Task =======================================================================
   while (ros::ok() && !task_square_emergeToTop){
@@ -1065,6 +1069,22 @@ int main(int argc, char **argv){
 
   //Task =======================================================================
   while(ros::ok() && !task_hydrophone_finding){
+    settingCVInfo(0,0,0,0,0,0);
+    cvInfoPublisher.publish(cvInfo);
+    ros::spinOnce();
+    loop_rate.sleep();
+  }
+
+  resetVariables();
+
+  //Task =======================================================================
+  if(!task_turnOffMotors) ROS_INFO("Turning off motors...");
+  while(ros::ok() && !task_turnOffMotors){
+    if(!receivedFromHControl){
+      hControl.state = 5;
+      hControl.depth = 9;
+      hControlPublisher.publish(hControl);
+    }
     settingCVInfo(0,0,0,0,0,0);
     cvInfoPublisher.publish(cvInfo);
     ros::spinOnce();
@@ -1279,6 +1299,7 @@ void pControlStatusCallback(const std_msgs::Int32 pc){
   else if(!task_cv_beforeCenter_1){}
   else if(!task_cv_centering_1){}
   else if(!task_hydrophone_finding){}
+  else if(!task_turnOffMotors){}
 }
 
 
@@ -1291,6 +1312,8 @@ void hControlReceiveCheck(int hState, float hDepth, bool* currentTask, int hcSta
       ROS_INFO("Sending command to height_control - emerge x ft");
     if(hState == 4)
       ROS_INFO("Sending command to height_control - turn on the motors");
+    if(hState == 5)
+      ROS_INFO("Sending command to height_control - turn off the motors");
   }
   if(!receivedFromHControl && hcState == hState && hcDepth == hDepth){
     receivedFromHControl = true;
@@ -1300,6 +1323,12 @@ void hControlReceiveCheck(int hState, float hDepth, bool* currentTask, int hcSta
       ROS_INFO("height_control message received - emerging...");
     if(hState == 4)
       ROS_INFO("height_control message received - motors are on");
+    if(hState == 5)
+      ROS_INFO("height_control message received - motors are off");
+  }
+  if(!receivedFromHControl && hState == 5 && hcState == 1 && hcDepth == 0){
+    *currentTask = true;
+    ROS_INFO("Motors are off. Sub is ready to be pick up.\n");
   }
   if(receivedFromHControl && hcState == 1 && hcDepth == 0){
     receivedFromHControl = false;
@@ -1396,6 +1425,9 @@ void hControlStatusCallback(const auv_cal_state_la_2017::HControl hc){
   else if(!task_cv_beforeCenter_1){}
   else if(!task_cv_centering_1){}
   else if(!task_hydrophone_finding){}
+  else if(!task_turnOffMotors){
+    hControlReceiveCheck(5,9,&task_turnOffMotors,hcState,hcDepth);
+  }
 }
 
 
@@ -1508,6 +1540,7 @@ void rControlStatusCallback(const auv_cal_state_la_2017::RControl rc){
   else if(!task_cv_beforeCenter_1){}
   else if(!task_cv_centering_1){}
   else if(!task_hydrophone_finding){}
+  else if(!task_turnOffMotors){}
 }
 
 
@@ -1564,49 +1597,12 @@ void mControlStatusCallback(const auv_cal_state_la_2017::MControl mc){
   else if(!task_submergeXft2){}
   else if(!task_mode1Movement){
     mControlReceiveCheck(1,&task_mode1Movement,mcState);
-    // if(!receivedFromMControl){
-    //   ROS_INFO("Sending command to movememt_control - keep moving with fixed power");
-    // }
-    // if(!receivedFromMControl && mc.state == 1){
-    //   receivedFromMControl = true;
-    //   ROS_INFO("movement_control message received - moving...");
-    // }
-    // //Testing----------------------------------------------------
-    // if(receivedFromMControl && mc.state == 0){
-    //   receivedFromMControl = false;
-    //   task_mode1Movement = true;
-    //   ROS_INFO("Movemment completed.\n");
-    // }
   }
   else if(!task_mode5Movement1){
     mControlReceiveCheck(5,&task_mode5Movement1,mcState);
-    // if(!receivedFromMControl){
-    //   ROS_INFO("Sending command to movememt_control - keep moving with fixed power for a specific time");
-    // }
-    // if(!receivedFromMControl && mc.state == 5){
-    //   receivedFromMControl = true;
-    //   ROS_INFO("movement_control message received - moving...");
-    // }
-    // if(receivedFromMControl && mc.state == 0){
-    //   receivedFromMControl = false;
-    //   task_mode5Movement1 = true;
-    //   ROS_INFO("Movemment completed.\n");
-    // }
   }
   else if(!task_mode5Movement2){
     mControlReceiveCheck(5,&task_mode5Movement2,mcState);
-    // if(!receivedFromMControl){
-    //   ROS_INFO("Sending command to movememt_control - keep moving with fixed power for a specific time");
-    // }
-    // if(!receivedFromMControl && mc.state == 5){
-    //   receivedFromMControl = true;
-    //   ROS_INFO("movement_control message received - moving...");
-    // }
-    // if(receivedFromMControl && mc.state == 0){
-    //   receivedFromMControl = false;
-    //   task_mode5Movement2 = true;
-    //   ROS_INFO("Movemment completed.\n");
-    // }
   }
   else if(!task_pneumaticsControl1){}
   else if(!task_pneumaticsControl2){}
@@ -1617,65 +1613,17 @@ void mControlStatusCallback(const auv_cal_state_la_2017::MControl mc){
   else if(!task_gate1_changeAngle){}
   else if(!task_gate1_mode5Forward){
     mControlReceiveCheck(5,&task_gate1_mode5Forward,mcState);
-    // if(!receivedFromMControl){
-    //   ROS_INFO("Sending command to movememt_control - keep moving with fixed power for a specific time");
-    // }
-    // if(!receivedFromMControl && mc.state == 5){
-    //   receivedFromMControl = true;
-    //   ROS_INFO("movement_control message received - moving...");
-    // }
-    // if(receivedFromMControl && mc.state == 0){
-    //   receivedFromMControl = false;
-    //   task_gate1_mode5Forward = true;
-    //   ROS_INFO("Movemment completed.\n");
-    // }
   }
   else if(!task_gate1_mode5Break){
     mControlReceiveCheck(5,&task_gate1_mode5Break,mcState);
-    // if(!receivedFromMControl){
-    //   ROS_INFO("Sending command to movememt_control - keep moving with fixed power for a specific time");
-    // }
-    // if(!receivedFromMControl && mc.state == 5){
-    //   receivedFromMControl = true;
-    //   ROS_INFO("movement_control message received - moving...");
-    // }
-    // if(receivedFromMControl && mc.state == 0){
-    //   receivedFromMControl = false;
-    //   task_gate1_mode5Break = true;
-    //   ROS_INFO("Movemment completed.\n");
-    // }
   }
   else if(!task_gate1_emergeToTop){}
   else if(!task_square_submergeXft){}
   else if(!task_square_mode5Movement1){
     mControlReceiveCheck(5,&task_square_mode5Movement1,mcState);
-    // if(!receivedFromMControl){
-    //   ROS_INFO("Sending command to movememt_control - keep moving with fixed power for a specific time");
-    // }
-    // if(!receivedFromMControl && mc.state == 5){
-    //   receivedFromMControl = true;
-    //   ROS_INFO("movement_control message received - moving...");
-    // }
-    // if(receivedFromMControl && mc.state == 0){
-    //   receivedFromMControl = false;
-    //   task_square_mode5Movement1 = true;
-    //   ROS_INFO("Movemment completed.\n");
-    // }
   }
   else if(!task_square_mode5Movement2){
     mControlReceiveCheck(5,&task_square_mode5Movement2,mcState);
-    // if(!receivedFromMControl){
-    //   ROS_INFO("Sending command to movememt_control - keep moving with fixed power for a specific time");
-    // }
-    // if(!receivedFromMControl && mc.state == 5){
-    //   receivedFromMControl = true;
-    //   ROS_INFO("movement_control message received - moving...");
-    // }
-    // if(receivedFromMControl && mc.state == 0){
-    //   receivedFromMControl = false;
-    //   task_square_mode5Movement2 = true;
-    //   ROS_INFO("Movemment completed.\n");
-    // }
   }
   else if(!task_square_rotateRightXd){}
   else if(!task_square_emergeToTop){}
@@ -1684,34 +1632,12 @@ void mControlStatusCallback(const auv_cal_state_la_2017::MControl mc){
   else if(!task_cv_getTargetInfo_1){}
   else if(!task_cv_beforeCenter_1){
     mControlReceiveCheck(5,&task_cv_beforeCenter_1,mcState);
-    // if(!receivedFromMControl){
-    //   ROS_INFO("Sending command to movememt_control - move towards target");
-    // }
-    // if(!receivedFromMControl && mc.state == 1){
-    //   receivedFromMControl = true;
-    //   ROS_INFO("movement_control message received - moving...");
-    // }
-    // if(objectFound && !receivedFromMControl && mc.state == 0){
-    //   receivedFromMControl = true;
-    //   ROS_INFO("Sub is now stopped.");
-    // }
   }
   else if(!task_cv_centering_1){
-    // rControlReceiveCheck(3,&task_cv_centering_1,mcState);
-    // if(!receivedFromMControl){
-    //   ROS_INFO("Sending command to movement_control - centering with front camera");
-    // }
-    // if(!receivedFromMControl && mc.state == 3){
-    //   receivedFromMControl = true;
-    //   ROS_INFO("movement_control message received - centering");
-    // }
-    // if(receivedFromMControl && mc.state == 0){
-    //   receivedFromMControl = false;
-    //   task_cv_centering_1 = true;
-    //   ROS_INFO("Finished centering.");
-    // }
+    mControlReceiveCheck(3,&task_cv_centering_1,mcState);
   }
   else if(!task_hydrophone_finding){}
+  else if(!task_turnOffMotors){}
 }
 
 
@@ -1804,6 +1730,7 @@ void targetInfoCallback(const auv_cal_state_la_2017::TargetInfo ti){
   }
   else if(!task_cv_centering_1){}
   else if(!task_hydrophone_finding){}
+  else if(!task_turnOffMotors){}
 }
 
 
@@ -1850,6 +1777,7 @@ void hydrophoneCallback(const auv_cal_state_la_2017::Hydrophone hy){
     hydrophoneDirection = hy.direction;
     hydrophoneAngle = hy.angle;
   }
+  else if(!task_turnOffMotors){}
 }
 
 

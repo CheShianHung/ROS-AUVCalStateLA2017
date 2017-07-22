@@ -378,7 +378,8 @@ void rotationCallback(const auv_cal_state_la_2017::Rotation& rotation){
 
 
 void hControlCallback(const auv_cal_state_la_2017::HControl& hControl) {
-
+  int hState = hControl.state;
+  float hDepth = hControl.depth;
   char depthChar[6];
   float depth = hControl.depth;
   dtostrf(depth, 4, 2, depthChar);
@@ -425,8 +426,16 @@ void hControlCallback(const auv_cal_state_la_2017::HControl& hControl) {
     assignedDepth = feetDepth_read;
     //assignedDepth = 0.1;
   }
-  hControlStatus.state = hControl.state;
-  hControlStatus.depth = hControl.depth;
+  else if(hControl.state == 5){
+    if(subIsReady){
+      subIsReady = false;
+      nh.loginfo("Motors are locked.");
+    }
+    assignedDepth = feetDepth_read;
+    //assignedDepth = 0.1;
+  }
+  hControlStatus.state = hState;
+  hControlStatus.depth = hDepth;
   hControlPublisher.publish(&hControlStatus);
 
 }
