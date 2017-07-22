@@ -1489,7 +1489,8 @@ void rControlStatusCallback(const auv_cal_state_la_2017::RControl rc){
   else if(!task_square_mode5Movement1){}
   else if(!task_square_mode5Movement2){}
   else if(!task_square_rotateRightXd){
-    rControlReceiveCheck(2,angleToTurn,&task_square_rotateRightXd,rcState,rcRotation);  }
+    rControlReceiveCheck(2,angleToTurn,&task_square_rotateRightXd,rcState,rcRotation);  
+  }
   else if(!task_square_emergeToTop){}
   else if(!task_cv_findingObject_testing){}
   else if(!task_cv_getDistance_testing){}
@@ -1511,7 +1512,29 @@ void rControlStatusCallback(const auv_cal_state_la_2017::RControl rc){
 
 
 
+void mControlReceiveCheck(int mState, bool* currentTask, int mcState){
+  if(!receivedFromMControl){
+    if(mState == 1)
+      ROS_INFO("Sending command to movememt_control - keep moving with fixed power");
+    if(mState == 3)
+      ROS_INFO("Sending command to movement_control - centering with front camera");
+    if(mState == 5)
+      ROS_INFO("Sending command to movement_control - keep moving for specific time");
+  }
+  if(!receivedFromMControl && mcState == mState){
+    receivedFromMControl = true;
+    ROS_INFO("movement_control message received - moving...");
+  }
+  if(receivedFromMControl && mcState == 0 && mState != 1){
+    receivedFromMControl = false;
+    *currentTask = true;
+    ROS_INFO("Movemment completed.\n");
+  }
+}
+
 void mControlStatusCallback(const auv_cal_state_la_2017::MControl mc){
+  int mcState = mc.state;
+
   if(!allNodesAreReady){
     if(!checkingMovementControl){
       ROS_INFO("Checking movement_control...");
@@ -1540,47 +1563,50 @@ void mControlStatusCallback(const auv_cal_state_la_2017::MControl mc){
   else if(!task_keepRotatingLeft){}
   else if(!task_submergeXft2){}
   else if(!task_mode1Movement){
-    if(!receivedFromMControl){
-      ROS_INFO("Sending command to movememt_control - keep moving with fixed power");
-    }
-    if(!receivedFromMControl && mc.state == 1){
-      receivedFromMControl = true;
-      ROS_INFO("movement_control message received - moving...");
-    }
-    //Testing----------------------------------------------------
-    if(receivedFromMControl && mc.state == 0){
-      receivedFromMControl = false;
-      task_mode1Movement = true;
-      ROS_INFO("Movemment completed.\n");
-    }
+    mControlReceiveCheck(1,&task_mode1Movement,mcState);
+    // if(!receivedFromMControl){
+    //   ROS_INFO("Sending command to movememt_control - keep moving with fixed power");
+    // }
+    // if(!receivedFromMControl && mc.state == 1){
+    //   receivedFromMControl = true;
+    //   ROS_INFO("movement_control message received - moving...");
+    // }
+    // //Testing----------------------------------------------------
+    // if(receivedFromMControl && mc.state == 0){
+    //   receivedFromMControl = false;
+    //   task_mode1Movement = true;
+    //   ROS_INFO("Movemment completed.\n");
+    // }
   }
   else if(!task_mode5Movement1){
-    if(!receivedFromMControl){
-      ROS_INFO("Sending command to movememt_control - keep moving with fixed power for a specific time");
-    }
-    if(!receivedFromMControl && mc.state == 5){
-      receivedFromMControl = true;
-      ROS_INFO("movement_control message received - moving...");
-    }
-    if(receivedFromMControl && mc.state == 0){
-      receivedFromMControl = false;
-      task_mode5Movement1 = true;
-      ROS_INFO("Movemment completed.\n");
-    }
+    mControlReceiveCheck(5,&task_mode5Movement1,mcState);
+    // if(!receivedFromMControl){
+    //   ROS_INFO("Sending command to movememt_control - keep moving with fixed power for a specific time");
+    // }
+    // if(!receivedFromMControl && mc.state == 5){
+    //   receivedFromMControl = true;
+    //   ROS_INFO("movement_control message received - moving...");
+    // }
+    // if(receivedFromMControl && mc.state == 0){
+    //   receivedFromMControl = false;
+    //   task_mode5Movement1 = true;
+    //   ROS_INFO("Movemment completed.\n");
+    // }
   }
   else if(!task_mode5Movement2){
-    if(!receivedFromMControl){
-      ROS_INFO("Sending command to movememt_control - keep moving with fixed power for a specific time");
-    }
-    if(!receivedFromMControl && mc.state == 5){
-      receivedFromMControl = true;
-      ROS_INFO("movement_control message received - moving...");
-    }
-    if(receivedFromMControl && mc.state == 0){
-      receivedFromMControl = false;
-      task_mode5Movement2 = true;
-      ROS_INFO("Movemment completed.\n");
-    }
+    mControlReceiveCheck(5,&task_mode5Movement2,mcState);
+    // if(!receivedFromMControl){
+    //   ROS_INFO("Sending command to movememt_control - keep moving with fixed power for a specific time");
+    // }
+    // if(!receivedFromMControl && mc.state == 5){
+    //   receivedFromMControl = true;
+    //   ROS_INFO("movement_control message received - moving...");
+    // }
+    // if(receivedFromMControl && mc.state == 0){
+    //   receivedFromMControl = false;
+    //   task_mode5Movement2 = true;
+    //   ROS_INFO("Movemment completed.\n");
+    // }
   }
   else if(!task_pneumaticsControl1){}
   else if(!task_pneumaticsControl2){}
@@ -1590,62 +1616,66 @@ void mControlStatusCallback(const auv_cal_state_la_2017::MControl mc){
   else if(!task_gate1_findGate){}
   else if(!task_gate1_changeAngle){}
   else if(!task_gate1_mode5Forward){
-    if(!receivedFromMControl){
-      ROS_INFO("Sending command to movememt_control - keep moving with fixed power for a specific time");
-    }
-    if(!receivedFromMControl && mc.state == 5){
-      receivedFromMControl = true;
-      ROS_INFO("movement_control message received - moving...");
-    }
-    if(receivedFromMControl && mc.state == 0){
-      receivedFromMControl = false;
-      task_gate1_mode5Forward = true;
-      ROS_INFO("Movemment completed.\n");
-    }
+    mControlReceiveCheck(5,&task_gate1_mode5Forward,mcState);
+    // if(!receivedFromMControl){
+    //   ROS_INFO("Sending command to movememt_control - keep moving with fixed power for a specific time");
+    // }
+    // if(!receivedFromMControl && mc.state == 5){
+    //   receivedFromMControl = true;
+    //   ROS_INFO("movement_control message received - moving...");
+    // }
+    // if(receivedFromMControl && mc.state == 0){
+    //   receivedFromMControl = false;
+    //   task_gate1_mode5Forward = true;
+    //   ROS_INFO("Movemment completed.\n");
+    // }
   }
   else if(!task_gate1_mode5Break){
-    if(!receivedFromMControl){
-      ROS_INFO("Sending command to movememt_control - keep moving with fixed power for a specific time");
-    }
-    if(!receivedFromMControl && mc.state == 5){
-      receivedFromMControl = true;
-      ROS_INFO("movement_control message received - moving...");
-    }
-    if(receivedFromMControl && mc.state == 0){
-      receivedFromMControl = false;
-      task_gate1_mode5Break = true;
-      ROS_INFO("Movemment completed.\n");
-    }
+    mControlReceiveCheck(5,&task_gate1_mode5Break,mcState);
+    // if(!receivedFromMControl){
+    //   ROS_INFO("Sending command to movememt_control - keep moving with fixed power for a specific time");
+    // }
+    // if(!receivedFromMControl && mc.state == 5){
+    //   receivedFromMControl = true;
+    //   ROS_INFO("movement_control message received - moving...");
+    // }
+    // if(receivedFromMControl && mc.state == 0){
+    //   receivedFromMControl = false;
+    //   task_gate1_mode5Break = true;
+    //   ROS_INFO("Movemment completed.\n");
+    // }
   }
   else if(!task_gate1_emergeToTop){}
   else if(!task_square_submergeXft){}
   else if(!task_square_mode5Movement1){
-    if(!receivedFromMControl){
-      ROS_INFO("Sending command to movememt_control - keep moving with fixed power for a specific time");
-    }
-    if(!receivedFromMControl && mc.state == 5){
-      receivedFromMControl = true;
-      ROS_INFO("movement_control message received - moving...");
-    }
-    if(receivedFromMControl && mc.state == 0){
-      receivedFromMControl = false;
-      task_square_mode5Movement1 = true;
-      ROS_INFO("Movemment completed.\n");
-    }
+    mControlReceiveCheck(5,&task_square_mode5Movement1,mcState);
+    // if(!receivedFromMControl){
+    //   ROS_INFO("Sending command to movememt_control - keep moving with fixed power for a specific time");
+    // }
+    // if(!receivedFromMControl && mc.state == 5){
+    //   receivedFromMControl = true;
+    //   ROS_INFO("movement_control message received - moving...");
+    // }
+    // if(receivedFromMControl && mc.state == 0){
+    //   receivedFromMControl = false;
+    //   task_square_mode5Movement1 = true;
+    //   ROS_INFO("Movemment completed.\n");
+    // }
   }
   else if(!task_square_mode5Movement2){
-    if(!receivedFromMControl){
-      ROS_INFO("Sending command to movememt_control - keep moving with fixed power for a specific time");
-    }
-    if(!receivedFromMControl && mc.state == 5){
-      receivedFromMControl = true;
-      ROS_INFO("movement_control message received - moving...");
-    }
-    if(receivedFromMControl && mc.state == 0){
-      receivedFromMControl = false;
-      task_square_mode5Movement2 = true;
-      ROS_INFO("Movemment completed.\n");
-    }
+    mControlReceiveCheck(5,&task_square_mode5Movement2,mcState);
+    // if(!receivedFromMControl){
+    //   ROS_INFO("Sending command to movememt_control - keep moving with fixed power for a specific time");
+    // }
+    // if(!receivedFromMControl && mc.state == 5){
+    //   receivedFromMControl = true;
+    //   ROS_INFO("movement_control message received - moving...");
+    // }
+    // if(receivedFromMControl && mc.state == 0){
+    //   receivedFromMControl = false;
+    //   task_square_mode5Movement2 = true;
+    //   ROS_INFO("Movemment completed.\n");
+    // }
   }
   else if(!task_square_rotateRightXd){}
   else if(!task_square_emergeToTop){}
@@ -1653,31 +1683,33 @@ void mControlStatusCallback(const auv_cal_state_la_2017::MControl mc){
   else if(!task_cv_getDistance_testing){}
   else if(!task_cv_getTargetInfo_1){}
   else if(!task_cv_beforeCenter_1){
-    if(!receivedFromMControl){
-      ROS_INFO("Sending command to movememt_control - move towards target");
-    }
-    if(!receivedFromMControl && mc.state == 1){
-      receivedFromMControl = true;
-      ROS_INFO("movement_control message received - moving...");
-    }
-    if(objectFound && !receivedFromMControl && mc.state == 0){
-      receivedFromMControl = true;
-      ROS_INFO("Sub is now stopped.");
-    }
+    mControlReceiveCheck(5,&task_cv_beforeCenter_1,mcState);
+    // if(!receivedFromMControl){
+    //   ROS_INFO("Sending command to movememt_control - move towards target");
+    // }
+    // if(!receivedFromMControl && mc.state == 1){
+    //   receivedFromMControl = true;
+    //   ROS_INFO("movement_control message received - moving...");
+    // }
+    // if(objectFound && !receivedFromMControl && mc.state == 0){
+    //   receivedFromMControl = true;
+    //   ROS_INFO("Sub is now stopped.");
+    // }
   }
   else if(!task_cv_centering_1){
-    if(!receivedFromMControl){
-      ROS_INFO("Sending command to movement_control - centering with front camera");
-    }
-    if(!receivedFromMControl && mc.state == 3){
-      receivedFromMControl = true;
-      ROS_INFO("movement_control message received - centering");
-    }
-    if(receivedFromMControl && mc.state == 0){
-      receivedFromMControl = false;
-      task_cv_centering_1 = true;
-      ROS_INFO("Finished centering.");
-    }
+    // rControlReceiveCheck(3,&task_cv_centering_1,mcState);
+    // if(!receivedFromMControl){
+    //   ROS_INFO("Sending command to movement_control - centering with front camera");
+    // }
+    // if(!receivedFromMControl && mc.state == 3){
+    //   receivedFromMControl = true;
+    //   ROS_INFO("movement_control message received - centering");
+    // }
+    // if(receivedFromMControl && mc.state == 0){
+    //   receivedFromMControl = false;
+    //   task_cv_centering_1 = true;
+    //   ROS_INFO("Finished centering.");
+    // }
   }
   else if(!task_hydrophone_finding){}
 }
