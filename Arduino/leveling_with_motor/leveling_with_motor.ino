@@ -1171,7 +1171,7 @@ void rotateLeftDynamically(){
     T5.writeMicroseconds(1500 + rotatePower);
     T7.writeMicroseconds(1500 - rotatePower);
   }
-  nh.loginfo("rotate left");
+  //nh.loginfo("rotate left");
   //Testing----------------------------
   //yaw += 1;
   //if(yaw > rotationUpperBound) yaw -= 360;
@@ -1189,7 +1189,7 @@ void rotateRightDynamically(){
     T5.writeMicroseconds(1500 - rotatePower);
     T7.writeMicroseconds(1500 + rotatePower);
   }
-  nh.loginfo("rotate right");
+  //nh.loginfo("rotate right");
   //Testing----------------------------
   //yaw -= 1;
   //if(yaw < rotationLowerBound) yaw +=360;
