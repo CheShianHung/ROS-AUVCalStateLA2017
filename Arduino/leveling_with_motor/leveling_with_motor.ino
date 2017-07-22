@@ -106,6 +106,7 @@ bool isTurningLeft;
 bool keepTurningRight;
 bool keepTurningLeft;
 bool rControlMode3;
+bool rControlMode4;
 bool mControlMode1;
 bool mControlMode2;
 bool mControlMode3;
@@ -241,6 +242,7 @@ void setup() {
   keepTurningRight = false;
   keepTurningLeft = false;
   rControlMode3 = false;
+  rControlMode4 = false;
   mControlMode1 = false;
   mControlMode2 = false;
   mControlMode3 = false;
@@ -448,7 +450,7 @@ void rControlCallback(const auv_cal_state_la_2017::RControl& rControl){
   dtostrf(rotation, 4, 2, rotationChar);
 
   if(rControl.state == 0){
-    if(!isTurningRight && !isTurningLeft && !rControlMode3){
+    if(!isTurningRight && !isTurningLeft && !rControlMode3 && !rControlMode4){
       if(rotation == -1) {
         keepTurningLeft = true;
         //Testing---------------------------------------------------
@@ -468,18 +470,19 @@ void rControlCallback(const auv_cal_state_la_2017::RControl& rControl){
       nh.loginfo("Sub is still rotating. Command abort.");
   }
   else if(rControl.state == 1){
-    if(isTurningRight || isTurningLeft || keepTurningRight || keepTurningLeft || rControlMode3){
+    if(isTurningRight || isTurningLeft || keepTurningRight || keepTurningLeft || rControlMode3 || rControlMode4){
       isTurningRight = false;
       isTurningLeft = false;
       keepTurningRight = false;
       keepTurningLeft = false;
       rControlMode3 = false;
+      rControlMode4 = false;
       nh.loginfo("Rotation control is now cancelled\n");
     }
     assignedYaw = yaw;
   }
   else if(rControl.state == 2){
-    if(!isTurningRight && !isTurningLeft && !rControlMode3){
+    if(!isTurningRight && !isTurningLeft && !rControlMode3 && !rControlMode4){
       if(rotation == -1) {
         keepTurningRight = true;
         //Testing---------------------------------------------------------------
@@ -499,7 +502,7 @@ void rControlCallback(const auv_cal_state_la_2017::RControl& rControl){
       nh.loginfo("Sub is still rotating.Command abort.");
   }
   else if(rControl.state == 3){
-    if(!isTurningRight && !isTurningLeft && !rControlMode3){
+    if(!isTurningRight && !isTurningLeft && !rControlMode3 && !rControlMode4){
       rControlMode3 = true;
       rotationTime = 3;
       rotationTimer = 0;
@@ -507,6 +510,15 @@ void rControlCallback(const auv_cal_state_la_2017::RControl& rControl){
     }
     else
       nh.loginfo("Sub is still rotating.Command abort.");
+  }
+  else if(rControl.state == 4){
+    if(!isTurningRight && !isTurningLeft && !rControlMode3 && !rControlMode4){
+      rControlMode4 = true;
+      nh.loginfo("Keep rotating with front camera horizontal distance.\n");
+    }
+    else
+      nh.loginfo("Sub is still rotating.Command abort.");
+    
   }
   rControlStatus.state = rControl.state;
   rControlStatus.rotation = rControl.rotation;
@@ -829,6 +841,23 @@ void rotationControl(){
   int fixedPower = 60;
 
   //boundry from -245 to 245
+  if(rControlMode4){
+    if(frontCamHorizontalDistance != 999){
+      float mode3Power = abs(frontCamHorizontalDistance) / 245 * 200 + 40;
+      if(frontCamHorizontalDistance > 0){
+        T5.writeMicroseconds(1500 - mode3Power);
+        T7.writeMicroseconds(1500 + mode3Power);
+      }
+      else if(frontCamHorizontalDistance < 0){
+        T5.writeMicroseconds(1500 + mode3Power);
+        T7.writeMicroseconds(1500 - mode3Power);
+      }
+      assignedYaw = yaw;
+    }
+    else{
+      nh.loginfo("Invalid frontCamHorizontalDistance value.");
+    }
+  }
   if(rControlMode3){
     if(frontCamHorizontalDistance != 999){
       float mode3Power = abs(frontCamHorizontalDistance) / 245 * 200 + 40;
@@ -840,7 +869,7 @@ void rotationControl(){
         T5.writeMicroseconds(1500 + mode3Power);
         T7.writeMicroseconds(1500 - mode3Power);
       }
-      if(frontCamHorizontalDistance < 15 && frontCamHorizontalDistance > -15){
+      if(frontCamHorizontalDistance < 50 && frontCamHorizontalDistance > -50){
         rotationTimer += 0.05;
         if(rotationTimer >= rotationTime)
           rControlMode3 = false;
@@ -897,7 +926,7 @@ void rotationControl(){
       rotateLeftDynamically();
   }
   //No rotation
- if(!keepTurningRight && !keepTurningLeft && !rControlMode3 && delta < rotationError){
+ if(!keepTurningRight && !keepTurningLeft && !rControlMode3 && !rControlMode4 && delta < rotationError){
     if(isTurningRight || isTurningLeft){
       isTurningRight = false;
       isTurningLeft = false;

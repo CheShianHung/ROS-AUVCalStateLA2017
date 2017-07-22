@@ -18,7 +18,8 @@
 // depth: nonstop moving (-1), moving distance (x)
 
 // rotation_control: (int) state, (float) rotation
-// state: rotate left (0), staying (1), rotate right (2), rotate with fcd(3)
+// state: rotate left (0), staying (1), rotate right (2), 
+//        rotate with fcd (3), keeping rotating with fcd (4)
 // rotation: nonstop rotating (-1), rotate degree (x)
 
 // movement_control: (int) state, (int) mDirection, (float) power, (float) distance
@@ -162,6 +163,13 @@ bool task_gate1_mode5Forward;
 bool task_gate1_mode5Break;
 bool task_gate1_emergeToTop;
 
+bool task_buoy1_submergeXft;
+bool task_buoy1_findBuoy;
+bool task_buoy1_changeAngle;
+bool task_buoy1_moveTowards;
+bool task_buoy1_break;
+bool task_buoy1_emergeToTop;
+
 bool task_square_submergeXft;
 bool task_square_mode5Movement1;
 bool task_square_mode5Movement2;
@@ -252,8 +260,8 @@ int main(int argc, char **argv){
   task_keepRotatingLeft         = true;
   task_submergeXft2             = true;
   task_mode1Movement            = true;
-  task_mode5Movement1           = false;
-  task_mode5Movement2           = false;
+  task_mode5Movement1           = true;
+  task_mode5Movement2           = true;
   task_pneumaticsControl1       = true;
   task_pneumaticsControl2       = true;
   task_pneumaticsControl3       = true;
@@ -265,6 +273,13 @@ int main(int argc, char **argv){
   task_gate1_mode5Forward       = true;
   task_gate1_mode5Break         = true;
   task_gate1_emergeToTop        = true;
+
+  task_buoy1_submergeXft        = false;
+  task_buoy1_findBuoy           = false;
+  task_buoy1_changeAngle        = true;
+  task_buoy1_moveTowards        = true;
+  task_buoy1_break              = true;
+  task_buoy1_emergeToTop        = true;
 
   task_square_submergeXft       = true;
   task_square_mode5Movement1    = true;
@@ -789,6 +804,125 @@ int main(int argc, char **argv){
   resetVariables();
 
 
+  if(!task_buoy1_submergeXft) ROS_INFO("Starting mission code - buoy test");
+  //Task =======================================================================
+  heightToMove = 4;
+  while(ros::ok() && !task_buoy1_submergeXft){
+    if(!receivedFromHControl){
+      hControl.state = 0;
+      hControl.depth = heightToMove;
+      hControlPublisher.publish(hControl);
+    }
+    settingCVInfo(0,0,0,0,0,0);
+    cvInfoPublisher.publish(cvInfo);
+    ros::spinOnce();
+    loop_rate.sleep();
+  }
+
+  resetVariables();
+  
+  //settingCVInfo(cameraNum,taskNum,givenColor,givenShape,givenLength,givenDistance)
+  //Task =======================================================================
+  while (ros::ok() && !task_buoy1_findBuoy){
+    ROS_INFO("Finding object...");
+    while(ros::ok() && !objectFound){
+      settingCVInfo(1,1,2,0,49,60);
+      //settingCVInfo(1,2,2,0,49,60);
+      //settingCVInfo(1,4,6,0,0,0);
+      //settingCVInfo(1,4,7,0,0,0);
+      cvInfoPublisher.publish(cvInfo);
+      ros::spinOnce();
+      loop_rate.sleep();
+    }
+  }
+
+  resetVariables();
+
+  //Task =======================================================================
+  while (ros::ok() && !task_buoy1_changeAngle){
+    ROS_INFO("Changing angle...");
+    while (ros::ok() && !task_buoy1_changeAngle){
+      if(receivedFromCV && !receivedFromRControl){
+        rControl.state = 3;
+        rControl.rotation = 0;
+        rControlPublisher.publish(rControl);
+      }
+      settingCVInfo(1,2,2,0,49,60);
+      cvInfoPublisher.publish(cvInfo);
+      ros::spinOnce();
+      loop_rate.sleep();
+    }
+    ROS_INFO("Now the sub is facing towards the object.\n");
+  }
+
+  resetVariables();
+
+  //Task ========================================================================
+  motorPower = 250;
+  directionToMove = 1;
+  targetInfoCounter = 0;
+  objectFound = true;
+  while(ros::ok() && !task_buoy1_moveTowards){
+    if(!receivedFromMControl){
+      mControl.state = 1;
+      mControl.mDirection = directionToMove;
+      mControl.power = motorPower;
+      mControl.distance = 0;
+      mControl.runningTime = 0;
+      mControlPublisher.publish(mControl);
+    }
+    if(!objectFound){
+      mControl.state = 0;
+      mControl.mDirection = 0;
+      mControl.power = 0;
+      mControl.distance = 0;
+      mControl.runningTime = 0;
+      mControlPublisher.publish(mControl);
+    }
+    settingCVInfo(1,2,2,0,49,60);
+    cvInfoPublisher.publish(cvInfo);
+    ros::spinOnce();
+    loop_rate.sleep();
+  }
+
+  resetVariables();
+
+  //Task ========================================================================
+  motorPower = 250;
+  directionToMove = 3;
+  while(ros::ok() && !task_buoy1_break){
+    if(!receivedFromMControl){
+      mControl.state = 5;
+      mControl.mDirection = directionToMove;
+      mControl.power = motorPower;
+      mControl.distance = 0;
+      mControl.runningTime = motorRunningTime;
+      mControlPublisher.publish(mControl);
+    }
+    settingCVInfo(1,2,2,0,49,60);
+    cvInfoPublisher.publish(cvInfo);
+    ros::spinOnce();
+    loop_rate.sleep();
+  }
+
+  resetVariables();
+
+  //Task =======================================================================
+  while (ros::ok() && !task_buoy1_emergeToTop){
+    if(!receivedFromHControl){
+      hControl.state = 2;
+      hControl.depth = -1;
+      hControlPublisher.publish(hControl);
+    }
+    settingCVInfo(0,0,0,0,0,0);
+    cvInfoPublisher.publish(cvInfo);
+    ros::spinOnce();
+    loop_rate.sleep();
+  }
+
+  resetVariables();
+
+
   if(!task_square_submergeXft) ROS_INFO("Starting mission code - square");
   //Task =======================================================================
   heightToMove = 4;
@@ -1197,6 +1331,62 @@ void frontCamDistanceCallback(const auv_cal_state_la_2017::FrontCamDistance fcd)
       }
     }
   }
+  else if(!task0_submergeToWater){}
+  else if(!task_turnOnMotors){}
+  else if(!task_submergeXft){}
+  else if(!task_emergeXft){}
+  else if(!task_emergeToTop){}
+  else if(!task_rotateRightXd1){}
+  else if(!task_rotateRightXd2){}
+  else if(!task_rotateRightXd3){}
+  else if(!task_rotateLeftXd1){}
+  else if(!task_rotateLeftXd2){}
+  else if(!task_rotateLeftXd3){}
+  else if(!task_submergeXft2){}
+  else if(!task_mode1Movement){}
+  else if(!task_mode5Movement1){}
+  else if(!task_mode5Movement2){}
+  else if(!task_pneumaticsControl1){}
+  else if(!task_pneumaticsControl2){}
+  else if(!task_pneumaticsControl3){}
+  else if(!task_pneumaticsControl4){}
+  else if(!task_gate1_submergeXft){}
+  else if(!task_gate1_findGate){}
+  else if(!task_gate1_changeAngle){}
+  else if(!task_gate1_mode5Forward){}
+  else if(!task_gate1_mode5Break){}
+  else if(!task_gate1_emergeToTop){}
+  else if(!task_buoy1_submergeXft){}
+  else if(!task_buoy1_findBuoy){}
+  else if(!task_buoy1_changeAngle){
+    if(fcd.frontCamHorizontalDistance != 999 && !receivedFromCV){
+      receivedFromCV =  true;
+      ROS_INFO("Start rotating according to object.");
+    }
+  }
+  else if(!task_buoy1_moveTowards){}
+  else if(!task_buoy1_break){}
+  else if(!task_buoy1_emergeToTop){}
+  else if(!task_square_submergeXft){}
+  else if(!task_square_mode5Movement1){
+    if(receivedFromMControl && fcd.frontCamHorizontalDistance == 999){
+      targetInfoCounter++;
+      if(targetInfoCounter >= 30){
+        ROS_INFO("The sub has swim past the object.");
+        objectFound = false;
+      }
+    }
+  }
+  else if(!task_square_mode5Movement2){}
+  else if(!task_square_rotateRightXd){}
+  else if(!task_square_emergeToTop){}
+  else if(!task_cv_findingObject_testing){}
+  else if(!task_cv_getDistance_testing){}
+  else if(!task_cv_getTargetInfo_1){}
+  else if(!task_cv_beforeCenter_1){}
+  else if(!task_cv_centering_1){}
+  else if(!task_hydrophone_finding){}
+  else if(!task_turnOffMotors){}
 
   frontCamForwardDistance = fcd.frontCamForwardDistance;
   frontCamHorizontalDistance = fcd.frontCamHorizontalDistance;
@@ -1288,6 +1478,12 @@ void pControlStatusCallback(const std_msgs::Int32 pc){
   else if(!task_gate1_mode5Forward){}
   else if(!task_gate1_mode5Break){}
   else if(!task_gate1_emergeToTop){}
+  else if(!task_buoy1_submergeXft){}
+  else if(!task_buoy1_findBuoy){}
+  else if(!task_buoy1_changeAngle){}
+  else if(!task_buoy1_moveTowards){}
+  else if(!task_buoy1_break){}
+  else if(!task_buoy1_emergeToTop){}
   else if(!task_square_submergeXft){}
   else if(!task_square_mode5Movement1){}
   else if(!task_square_mode5Movement2){}
@@ -1399,6 +1595,16 @@ void hControlStatusCallback(const auv_cal_state_la_2017::HControl hc){
   else if(!task_gate1_mode5Break){}
   else if(!task_gate1_emergeToTop){
     hControlReceiveCheck(2,-1,&task_gate1_emergeToTop,hcState,hcDepth);
+  }
+  else if(!task_buoy1_submergeXft){
+    hControlReceiveCheck(0,heightToMove,&task_buoy1_submergeXft,hcState,hcDepth);
+  }
+  else if(!task_buoy1_findBuoy){}
+  else if(!task_buoy1_changeAngle){}
+  else if(!task_buoy1_moveTowards){}
+  else if(!task_buoy1_break){}
+  else if(!task_buoy1_emergeToTop){
+    hControlReceiveCheck(2,-1,&task_buoy1_emergeToTop,hcState,hcDepth);
   }
   else if(!task_square_submergeXft){
     hControlReceiveCheck(0,heightToMove,&task_square_submergeXft,hcState,hcDepth);
@@ -1517,6 +1723,14 @@ void rControlStatusCallback(const auv_cal_state_la_2017::RControl rc){
   else if(!task_gate1_mode5Forward){}
   else if(!task_gate1_mode5Break){}
   else if(!task_gate1_emergeToTop){}
+  else if(!task_buoy1_submergeXft){}
+  else if(!task_buoy1_findBuoy){}
+  else if(!task_buoy1_changeAngle){
+    rControlReceiveCheck(3,0,&task_buoy1_changeAngle,rcState,rcRotation);
+  }
+  else if(!task_buoy1_moveTowards){}
+  else if(!task_buoy1_break){}
+  else if(!task_buoy1_emergeToTop){}
   else if(!task_square_submergeXft){}
   else if(!task_square_mode5Movement1){}
   else if(!task_square_mode5Movement2){}
@@ -1618,6 +1832,23 @@ void mControlStatusCallback(const auv_cal_state_la_2017::MControl mc){
     mControlReceiveCheck(5,&task_gate1_mode5Break,mcState);
   }
   else if(!task_gate1_emergeToTop){}
+  else if(!task_buoy1_submergeXft){}
+  else if(!task_buoy1_findBuoy){}
+  else if(!task_buoy1_changeAngle){}
+  else if(!task_buoy1_moveTowards){
+    if(objectFound)
+      mControlReceiveCheck(1,&task_buoy1_moveTowards,mcState);
+    else{
+      if(mcState == 0){
+        task_buoy1_moveTowards = true;
+        ROS_INFO("Motors stop.");
+      }
+    }
+  }
+  else if(!task_buoy1_break){
+    mControlReceiveCheck(5,&task_buoy1_break,mcState);
+  }
+  else if(!task_buoy1_emergeToTop){}
   else if(!task_square_submergeXft){}
   else if(!task_square_mode5Movement1){
     mControlReceiveCheck(5,&task_square_mode5Movement1,mcState);
@@ -1696,6 +1927,22 @@ void targetInfoCallback(const auv_cal_state_la_2017::TargetInfo ti){
   else if(!task_gate1_mode5Forward){}
   else if(!task_gate1_mode5Break){}
   else if(!task_gate1_emergeToTop){}
+  else if(!task_buoy1_submergeXft){}
+  else if(!task_buoy1_findBuoy){
+    //Object found
+    if(!objectFound && ti.state == 1){
+      ROS_INFO("Object found.\n");
+      objectFound = true;
+      task_buoy1_findBuoy = true;
+      directionToMove = ti.direction;
+      angleToTurn = ti.angle;
+      heightToMove = ti.height;
+    }
+  }
+  else if(!task_buoy1_changeAngle){}
+  else if(!task_buoy1_moveTowards){}
+  else if(!task_buoy1_break){}
+  else if(!task_buoy1_emergeToTop){}
   else if(!task_square_submergeXft){}
   else if(!task_square_mode5Movement1){}
   else if(!task_square_mode5Movement2){}
@@ -1762,6 +2009,12 @@ void hydrophoneCallback(const auv_cal_state_la_2017::Hydrophone hy){
   else if(!task_gate1_mode5Forward){}
   else if(!task_gate1_mode5Break){}
   else if(!task_gate1_emergeToTop){}
+  else if(!task_buoy1_submergeXft){}
+  else if(!task_buoy1_findBuoy){}
+  else if(!task_buoy1_changeAngle){}
+  else if(!task_buoy1_moveTowards){}
+  else if(!task_buoy1_break){}
+  else if(!task_buoy1_emergeToTop){}
   else if(!task_square_submergeXft){}
   else if(!task_square_mode5Movement1){}
   else if(!task_square_mode5Movement2){}
