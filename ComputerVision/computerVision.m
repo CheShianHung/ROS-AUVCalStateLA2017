@@ -442,9 +442,9 @@ switch msg.TaskNumber
                             end
                             center = scale.*[cX,cY];
                             radius = scale.*radius;
-                            delta_h = (origin(2)-center(2))./10;
+                            delta_h = (origin(2)-center(2));
                             fcdMsg.FrontCamVerticalDistance = delta_h;
-                            delta_x = (origin(1)-center(1))./10;
+                            delta_x = (center(1)-origin(1));
                             fcdMsg.FrontCamHorizontalDistance = delta_x;
                             distance = given_distance*given_radius/radius;
                             fcdMsg.FrontCamForwardDistance = distance;
