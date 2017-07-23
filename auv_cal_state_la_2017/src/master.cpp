@@ -245,7 +245,7 @@ int main(int argc, char **argv){
   bottomCamHorizontalDistance = 0;
   bottomCamVerticalDistance = 0;
 
-  task0_submergeToWater         = true;
+  task0_submergeToWater         = false;
   task_turnOnMotors             = false;
   task_submergeXft              = true;
   task_emergeXft                = true;
@@ -274,18 +274,18 @@ int main(int argc, char **argv){
   task_gate1_mode5Break         = true;
   task_gate1_emergeToTop        = true;
 
-  task_buoy1_submergeXft        = false;
-  task_buoy1_findBuoy           = false;
+  task_buoy1_submergeXft        = true;
+  task_buoy1_findBuoy           = true;
   task_buoy1_changeAngle        = true;
   task_buoy1_moveTowards        = true;
   task_buoy1_break              = true;
   task_buoy1_emergeToTop        = true;
 
-  task_square_submergeXft       = true;
-  task_square_mode5Movement1    = true;
-  task_square_mode5Movement2    = true;
-  task_square_rotateRightXd     = true;
-  task_square_emergeToTop       = true;
+  task_square_submergeXft       = false;
+  task_square_mode5Movement1    = false;
+  task_square_mode5Movement2    = false;
+  task_square_rotateRightXd     = false;
+  task_square_emergeToTop       = false;
 
   task_cv_findingObject_testing = true;
   task_cv_getDistance_testing   = true;
@@ -340,6 +340,7 @@ int main(int argc, char **argv){
 
 
   //Task 0 - checking barometer (current_depth) to make sure the sub is under water
+  if(!task0_submergeToWater) ROS_INFO("Submerge to water...");
   while(ros::ok() && !task0_submergeToWater){
     settingCVInfo(0,0,0,0,0,0);
     cvInfoPublisher.publish(cvInfo);
@@ -351,7 +352,7 @@ int main(int argc, char **argv){
   // breakBetweenTasks(60);
    
   //Task =======================================================================
-  if(!task_turnOffMotors) ROS_INFO("Turning on motors...");
+  if(!task_turnOnMotors) ROS_INFO("Turning on motors...");
   while(ros::ok() && !task_turnOnMotors){
     if(!receivedFromHControl){
       hControl.state = 4;
@@ -365,7 +366,7 @@ int main(int argc, char **argv){
   }
 
   resetVariables();
-  // breakBetweenTasks(15);
+  breakBetweenTasks(30);
 
   //Task =======================================================================
   heightToMove = 2;
@@ -863,7 +864,7 @@ int main(int argc, char **argv){
   targetInfoCounter = 0;
   objectFound = true;
   while(ros::ok() && !task_buoy1_moveTowards){
-    if(!receivedFromMControl){
+    if(objectFound && !receivedFromMControl){
       mControl.state = 1;
       mControl.mDirection = directionToMove;
       mControl.power = motorPower;
@@ -925,7 +926,7 @@ int main(int argc, char **argv){
 
   if(!task_square_submergeXft) ROS_INFO("Starting mission code - square");
   //Task =======================================================================
-  heightToMove = 4;
+  heightToMove = 3;
   while(ros::ok() && !task_square_submergeXft){
     if(!receivedFromHControl){
       hControl.state = 0;
@@ -939,12 +940,13 @@ int main(int argc, char **argv){
   }
 
   resetVariables();
+  breakBetweenTasks(5);
   if(!task_square_mode5Movement1){
     for(int i = 0; i < 4; i++){
 
       //Task =======================================================================
-      motorPower = 100;
-      motorRunningTime = 8;
+      motorPower = 250;
+      motorRunningTime = 25;
       directionToMove = 1;
       while (ros::ok() && !task_square_mode5Movement1){
         if(!receivedFromMControl){
@@ -964,8 +966,8 @@ int main(int argc, char **argv){
       resetVariables();
 
       //Task =======================================================================
-      motorPower = 100;
-      motorRunningTime = 3;
+      motorPower = 250;
+      motorRunningTime = 1;
       directionToMove = 3;
       while (ros::ok() && !task_square_mode5Movement2){
         if(!receivedFromMControl){
@@ -985,7 +987,7 @@ int main(int argc, char **argv){
       resetVariables();
 
       //Task =======================================================================
-      angleToTurn = 90;
+      angleToTurn = 180;
       while (ros::ok() && !task_square_rotateRightXd){
         if(!receivedFromRControl){
           rControl.state = 2;
@@ -999,6 +1001,7 @@ int main(int argc, char **argv){
       }
 
       resetVariables();
+      breakBetweenTasks(5);
 
       if(i != 3){
         task_square_mode5Movement1 = false;
@@ -1364,12 +1367,8 @@ void frontCamDistanceCallback(const auv_cal_state_la_2017::FrontCamDistance fcd)
       ROS_INFO("Start rotating according to object.");
     }
   }
-  else if(!task_buoy1_moveTowards){}
-  else if(!task_buoy1_break){}
-  else if(!task_buoy1_emergeToTop){}
-  else if(!task_square_submergeXft){}
-  else if(!task_square_mode5Movement1){
-    if(receivedFromMControl && fcd.frontCamHorizontalDistance == 999){
+  else if(!task_buoy1_moveTowards){
+    if(objectFound && receivedFromMControl && fcd.frontCamHorizontalDistance == 999){
       targetInfoCounter++;
       if(targetInfoCounter >= 30){
         ROS_INFO("The sub has swim past the object.");
@@ -1377,6 +1376,10 @@ void frontCamDistanceCallback(const auv_cal_state_la_2017::FrontCamDistance fcd)
       }
     }
   }
+  else if(!task_buoy1_break){}
+  else if(!task_buoy1_emergeToTop){}
+  else if(!task_square_submergeXft){}
+  else if(!task_square_mode5Movement1){}
   else if(!task_square_mode5Movement2){}
   else if(!task_square_rotateRightXd){}
   else if(!task_square_emergeToTop){}
@@ -1838,9 +1841,10 @@ void mControlStatusCallback(const auv_cal_state_la_2017::MControl mc){
   else if(!task_buoy1_moveTowards){
     if(objectFound)
       mControlReceiveCheck(1,&task_buoy1_moveTowards,mcState);
-    else{
+    else if(receivedFromMControl){
       if(mcState == 0){
         task_buoy1_moveTowards = true;
+        receivedFromMControl = false;
         ROS_INFO("Motors stop.");
       }
     }

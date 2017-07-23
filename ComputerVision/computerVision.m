@@ -56,8 +56,8 @@ while 1
     %% Evaluate inputs
     if cviMsg.CameraNumber == 1 && ~frontCam
         delete(imaqfind);
-        %camera = videoinput('linuxvideo',1,'RGB24_744x480');
-        camera = videoinput('linuxvideo',1,'RGB24_1280x720');
+        camera = videoinput('linuxvideo',1,'RGB24_744x480');
+        %camera = videoinput('linuxvideo',1,'RGB24_1280x720');
         triggerconfig(camera,'manual');     % speeds up image acquisition for videoinput
         start(camera);
         %         if ~strcmp(camera.Name,'DFK 22AUC03')
