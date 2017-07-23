@@ -245,7 +245,7 @@ int main(int argc, char **argv){
   bottomCamHorizontalDistance = 0;
   bottomCamVerticalDistance = 0;
 
-  task0_submergeToWater         = false;
+  task0_submergeToWater         = true;
   task_turnOnMotors             = false;
   task_submergeXft              = true;
   task_emergeXft                = true;
@@ -275,17 +275,17 @@ int main(int argc, char **argv){
   task_gate1_emergeToTop        = true;
 
   task_buoy1_submergeXft        = true;
-  task_buoy1_findBuoy           = true;
+  task_buoy1_findBuoy           = false;
   task_buoy1_changeAngle        = true;
   task_buoy1_moveTowards        = true;
   task_buoy1_break              = true;
   task_buoy1_emergeToTop        = true;
 
-  task_square_submergeXft       = false;
-  task_square_mode5Movement1    = false;
-  task_square_mode5Movement2    = false;
-  task_square_rotateRightXd     = false;
-  task_square_emergeToTop       = false;
+  task_square_submergeXft       = true;
+  task_square_mode5Movement1    = true;
+  task_square_mode5Movement2    = true;
+  task_square_rotateRightXd     = true;
+  task_square_emergeToTop       = true;
 
   task_cv_findingObject_testing = true;
   task_cv_getDistance_testing   = true;
@@ -295,7 +295,7 @@ int main(int argc, char **argv){
 
   task_hydrophone_finding       = true;
 
-  task_turnOffMotors            = false;
+  task_turnOffMotors            = true;
 
 
   // ROS_INFO("Master starts running. Checking each topic...");
@@ -349,7 +349,7 @@ int main(int argc, char **argv){
   }
 
   resetVariables();
-  // breakBetweenTasks(60);
+  // breakBetweenTasks(120);
    
   //Task =======================================================================
   if(!task_turnOnMotors) ROS_INFO("Turning on motors...");
@@ -366,7 +366,7 @@ int main(int argc, char **argv){
   }
 
   resetVariables();
-  breakBetweenTasks(30);
+  // breakBetweenTasks(10);
 
   //Task =======================================================================
   heightToMove = 2;
@@ -587,7 +587,7 @@ int main(int argc, char **argv){
 
   //Task =======================================================================
   motorPower = 100;
-  motorRunningTime = 3;
+  motorRunningTime = 10;
   directionToMove = 1;
   while (ros::ok() && !task_mode5Movement1){
     if(!receivedFromMControl){
@@ -940,7 +940,7 @@ int main(int argc, char **argv){
   }
 
   resetVariables();
-  breakBetweenTasks(5);
+  // breakBetweenTasks(5);
   if(!task_square_mode5Movement1){
     for(int i = 0; i < 4; i++){
 

@@ -267,7 +267,7 @@ void setup() {
 //  assignedDepth = 0.2;
   //assignedYaw = -191.5;
   //subIsReady = true;
-  assignedYaw = 82.6;
+  assignedYaw = 78.23;
 //  currentRotation.data = yaw;
 
   hControlStatus.state = 1;
@@ -343,7 +343,7 @@ void loop() {
 
   //Depth
   //Testing----------------------
-  feetDepth_read =  sensor.depth() * 3.28 + 0.9;                                   //1 meter = 3.28 feet
+  //feetDepth_read =  sensor.depth() * 3.28 + 0.9;                                   //1 meter = 3.28 feet
   dutyCycl_depth = (abs(assignedDepth - feetDepth_read)/ 13.0);              //function to get a percentage of assigned height to the feet read
   PWM_Motors_Depth = dutyCycl_depth * 400;                                   //PWM for motors are between 1500 - 1900; difference is 400
 
@@ -1123,8 +1123,8 @@ void movementControl(){
   else if(mControlMode5){
     //forward
     if(mControlDirection == 1){
-      T6.writeMicroseconds(1500 + mControlPower + 30);
-      T8.writeMicroseconds(1500 - mControlPower - 70);
+      T6.writeMicroseconds(1500 + mControlPower);
+      T8.writeMicroseconds(1500 - mControlPower);
       //Testing-------------------
       positionY += 0.05;
       nh.loginfo("moving forward...");
