@@ -857,10 +857,12 @@ void rotationControl(){
       if(frontCamHorizontalDistance > 0){
         T5.writeMicroseconds(1500 - mode3Power);
         T7.writeMicroseconds(1500 + mode3Power);
+        nh.loginfo("turn right");
       }
       else if(frontCamHorizontalDistance < 0){
         T5.writeMicroseconds(1500 + mode3Power);
         T7.writeMicroseconds(1500 - mode3Power);
+        nh.loginfo("turn left");
       }
       assignedYaw = yaw;
     }
@@ -869,19 +871,24 @@ void rotationControl(){
     }
   }
   if(rControlMode3){
-    nh.spinOnce();
+    
     if(frontCamHorizontalDistance != 999){
       float mode3Power = abs(frontCamHorizontalDistance) / 245 * 200 + 40;
+//      char rChar[11];
+//      dtostrf(rotationTimer, 4, 2, rChar);
+//      nh.loginfo(rChar);
       if(frontCamHorizontalDistance > 0){
         T5.writeMicroseconds(1500 - mode3Power);
         T7.writeMicroseconds(1500 + mode3Power);
+        nh.loginfo("turn right");
       }
       else if(frontCamHorizontalDistance < 0){
         T5.writeMicroseconds(1500 + mode3Power);
         T7.writeMicroseconds(1500 - mode3Power);
+        nh.loginfo("turn left");
       }
-      if(frontCamHorizontalDistance < 50 && frontCamHorizontalDistance > -50){
-        rotationTimer += 0.01;
+      if(frontCamHorizontalDistance < 30 && frontCamHorizontalDistance > -30){
+        rotationTimer += 0.05;
         if(rotationTimer >= rotationTime){
           nh.loginfo("Times up");
           rControlMode3 = false;

@@ -351,6 +351,7 @@ switch msg.TaskNumber
         colorthresh(:,:,2) = [color(:,:,2)-satthresh,color(:,:,2)+satthresh];
         colorthresh(:,:,1) = mod(colorthresh(:,:,1),1);
         colorthresh = uint8(colorthresh*255);
+        found = false;
         
         lowerb = colorthresh(1,1,:);    % lower bound
         upperb = colorthresh(1,2,:);    % upper bound
@@ -448,6 +449,7 @@ switch msg.TaskNumber
                             fcdMsg.FrontCamHorizontalDistance = delta_x;
                             distance = given_distance*given_radius/radius;
                             fcdMsg.FrontCamForwardDistance = distance;
+                            found = true;
                             distance = double(distance);
                             delta_x = double(distance);
                             fprintf('Height:%3.2f Angle:%3.2f Distance:%3.2f\n',delta_h,delta_x,distance); % print the calculated height and amount needed to turn
@@ -472,9 +474,18 @@ switch msg.TaskNumber
                 otherwise
                     img = getsnapshot(camera);
                     img = img(1:480,161:650,:);
+            end 
+            
+            if ~found
+                fcdMsg.FrontCamVerticalDistance = 999;
+                fcdMsg.FrontCamHorizontalDistance = 999;
+                fcdMsg.FrontCamForwardDistance = 999;
+                fprintf('OBJECT LOST\n');
             end
+            
             send(fcdPub, fcdMsg);
             cviMsg = receive(cviSub) ;
+            found = false;
         end
         
         

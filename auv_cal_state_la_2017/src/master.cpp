@@ -276,9 +276,9 @@ int main(int argc, char **argv){
 
   task_buoy1_submergeXft        = true;
   task_buoy1_findBuoy           = false;
-  task_buoy1_changeAngle        = true;
-  task_buoy1_moveTowards        = true;
-  task_buoy1_break              = true;
+  task_buoy1_changeAngle        = false;
+  task_buoy1_moveTowards        = false;
+  task_buoy1_break              = false;
   task_buoy1_emergeToTop        = true;
 
   task_square_submergeXft       = true;
@@ -872,13 +872,23 @@ int main(int argc, char **argv){
       mControl.runningTime = 0;
       mControlPublisher.publish(mControl);
     }
-    if(!objectFound){
+    if(objectFound && !receivedFromRControl){
+      rControl.state = 4;
+      rControl.rotation = 0;
+      rControlPublisher.publish(rControl);
+    }
+    if(!objectFound && !receivedFromMControl){
       mControl.state = 0;
       mControl.mDirection = 0;
       mControl.power = 0;
       mControl.distance = 0;
       mControl.runningTime = 0;
       mControlPublisher.publish(mControl);
+    }
+    if(!objectFound && !receivedFromRControl){
+      rControl.state = 1;
+      rControl.rotation = 0;
+      rControlPublisher.publish(rControl);
     }
     settingCVInfo(1,2,2,0,49,60);
     cvInfoPublisher.publish(cvInfo);
@@ -891,6 +901,7 @@ int main(int argc, char **argv){
   //Task ========================================================================
   motorPower = 250;
   directionToMove = 3;
+  motorRunningTime = 1;
   while(ros::ok() && !task_buoy1_break){
     if(!receivedFromMControl){
       mControl.state = 5;
@@ -1368,13 +1379,16 @@ void frontCamDistanceCallback(const auv_cal_state_la_2017::FrontCamDistance fcd)
     }
   }
   else if(!task_buoy1_moveTowards){
-    if(objectFound && receivedFromMControl && fcd.frontCamHorizontalDistance == 999){
+    if(objectFound && receivedFromMControl && receivedFromRControl && fcd.frontCamHorizontalDistance == 999){
       targetInfoCounter++;
       if(targetInfoCounter >= 30){
         ROS_INFO("The sub has swim past the object.");
+        receivedFromMControl = false;
+        receivedFromRControl = false;
         objectFound = false;
       }
     }
+    else targetInfoCounter = 0;
   }
   else if(!task_buoy1_break){}
   else if(!task_buoy1_emergeToTop){}
@@ -1653,6 +1667,8 @@ void rControlReceiveCheck(int rState, float rRotation, bool* currentTask, int rc
       ROS_INFO("Sending command to rotation_control - keep rotating right");
     if(rState == 3)
       ROS_INFO("Sending commend to rotation_control - rotate according to fcd");
+    if(rState == 4)
+      ROS_INFO("Sending commend to rotation_control - keep rotating according to fcd");
   }
   if(!receivedFromRControl && rcState == rState && rcRotation == rRotation){
     receivedFromRControl = true;
@@ -1730,8 +1746,26 @@ void rControlStatusCallback(const auv_cal_state_la_2017::RControl rc){
   else if(!task_buoy1_findBuoy){}
   else if(!task_buoy1_changeAngle){
     rControlReceiveCheck(3,0,&task_buoy1_changeAngle,rcState,rcRotation);
+    if(task_buoy1_changeAngle) objectFound = false;
   }
-  else if(!task_buoy1_moveTowards){}
+  else if(!task_buoy1_moveTowards){
+    if(objectFound && !receivedFromRControl){
+      ROS_INFO("Sending commend to rotation_control - keep rotating according to fcd");
+    }
+    if(objectFound && !receivedFromRControl && rcState == 4){
+      receivedFromRControl = true;
+      ROS_INFO("rotation_control message received - rotating...");
+    }
+    if(!objectFound && !receivedFromRControl && rcState == 1){
+      receivedFromRControl = true;
+      ROS_INFO("Rotating completed.\n");
+      if(receivedFromRControl && receivedFromMControl){
+        receivedFromRControl = false;
+        receivedFromMControl = false;
+        task_buoy1_moveTowards = true;
+      }
+    }
+  }
   else if(!task_buoy1_break){}
   else if(!task_buoy1_emergeToTop){}
   else if(!task_square_submergeXft){}
@@ -1839,13 +1873,20 @@ void mControlStatusCallback(const auv_cal_state_la_2017::MControl mc){
   else if(!task_buoy1_findBuoy){}
   else if(!task_buoy1_changeAngle){}
   else if(!task_buoy1_moveTowards){
-    if(objectFound)
-      mControlReceiveCheck(1,&task_buoy1_moveTowards,mcState);
-    else if(receivedFromMControl){
-      if(mcState == 0){
-        task_buoy1_moveTowards = true;
+    if(objectFound && !receivedFromMControl){
+      ROS_INFO("Sending command to movememt_control - keep moving with fixed power");
+    }
+    if(objectFound && !receivedFromMControl && mcState == 1){
+      receivedFromMControl = true;
+      ROS_INFO("movement_control message received - moving...");
+    }
+    else if(!objectFound && !receivedFromMControl && mcState == 0){
+      receivedFromMControl = true;
+      ROS_INFO("Motors stop.\n");
+      if(receivedFromRControl && receivedFromMControl){
+        receivedFromRControl = false;
         receivedFromMControl = false;
-        ROS_INFO("Motors stop.");
+        task_buoy1_moveTowards = true;
       }
     }
   }
