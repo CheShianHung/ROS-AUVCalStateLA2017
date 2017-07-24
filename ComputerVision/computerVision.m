@@ -146,7 +146,7 @@ d = 50;
 % command inside of a terminal to adjust the exposure and brightness
 
 %% Colors
-colors_list = { 'red',[255,0,0]        % 1
+colors_list = { 'red',[255,101,255]        % 1
     'green',[25,123,76]                    % 2
     'yellow',[199,204,120]                  % 3
     'pink',[255,102,102]
@@ -154,7 +154,7 @@ colors_list = { 'red',[255,0,0]        % 1
     'gate',[145,59,35]};
 
 thresh_list = {[50,150]
-    [50,150]
+    [20,70]
     [50,150]
     [0,0]
     [0,0]
@@ -243,7 +243,7 @@ switch msg.TaskNumber
                 
                 if ~isnan(A(1,2))
                     %% Calculate the shape of the detected contour
-                    while ~circles && k < 5 && k <= length(A(:,1)) && A(k,1) > 10
+                    while ~circles && k < 5 && k <= length(A(:,1)) && A(k,1) > 5
                         c = A(k,2);             % index of contour with largest area
                         cnt = cnts{c};
                         M = cv.moments(cnt);
@@ -415,7 +415,7 @@ switch msg.TaskNumber
             
                 if ~isnan(A(1,2))
                     %% Calculate the shape of the detected contour
-                    while ~circles && k < 5 && k <= length(A(:,1)) && A(k,1) > 10
+                    while ~circles && k < 5 && k <= length(A(:,1)) && A(k,1) > 5
                         c = A(k,2);             % index of contour with largest area
                         cnt = cnts{c};
                         M = cv.moments(cnt);
