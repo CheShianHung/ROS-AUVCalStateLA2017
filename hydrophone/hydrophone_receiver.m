@@ -1,8 +1,7 @@
+%rosinit();
+
 clear;
 clc;
-
-hPub = rospublisher('/hydrophone','auv_cal_state_la_2017/Hydrophone');
-h = rosmessage('auv_cal_state_la_2017/Hydrophone');
 
 data = [0,0];
 client = tcpip('10.0.0.3',55000,'NetworkRole','Client');
@@ -11,10 +10,8 @@ set(client,'Timeout',60);
 fopen(client);
 disp("Client open");
 
-% server = tcpip('0.0.0.0',55000,'NetworkRole','Server');
-% s = whos('data');
-% set(server,'OutputBufferSize',s.bytes);
-% fopen(server);
+hPub = rospublisher('/hydrophone','auv_cal_state_la_2017/Hydrophone');
+h = rosmessage('auv_cal_state_la_2017/Hydrophone');
 
 while 1
     data = fread(client,2,'double');

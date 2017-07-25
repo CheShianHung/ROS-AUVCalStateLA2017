@@ -77,6 +77,7 @@ void checkCVNode();
 void settingCVInfo(int cameraNum, int taskNum, int givenColor, int givenShape, float givenFloat, float givenDistance);
 void resetVariables();
 void breakBetweenTasks(int seconds);
+void readHydrophone();
 
 //Regular variables
 const float angleError = 5.0;
@@ -85,6 +86,7 @@ int directionToMove;
 int pneumaticsNum;
 int hydrophoneDirection;
 int targetInfoCounter;
+int directionToTurn;
 float depth;
 float roll;
 float pitch;
@@ -132,6 +134,9 @@ bool finishedRotationControl;
 bool finishedHeightControl;
 bool objectFound;
 bool findingObject;
+bool readingHydrophone;
+bool hydrophoneLastRead;
+bool hydrophoneRotate;
 
 //Task variables
 bool task0_submergeToWater;
@@ -185,6 +190,7 @@ bool task_cv_beforeCenter_1;
 bool task_cv_centering_1;
 
 bool task_hydrophone_finding;
+bool task_hy_getDirection;
 
 bool task_turnOffMotors;
 
@@ -224,6 +230,9 @@ int main(int argc, char **argv){
   motorNodeIsReady = false;
   cvNodeIsReady = true;
   allNodesAreReady = true;
+  readingHydrophone = false;
+  hydrophoneLastRead = false;
+  hydrophoneRotate = false;
 
   depth = 0;
   roll = 0;
@@ -234,6 +243,7 @@ int main(int argc, char **argv){
   directionToMove = 0;
   pneumaticsNum = 0;
   angleToTurn = 0;
+  directionToTurn = 1;
   heightToMove = 0;
   motorPower = 0;
   motorRunningTime = 0;
@@ -298,6 +308,7 @@ int main(int argc, char **argv){
   task_cv_centering_1           = true;
 
   task_hydrophone_finding       = true;
+  task_hy_getDirection          = true;
 
   task_turnOffMotors            = false;
 
@@ -1276,6 +1287,274 @@ int main(int argc, char **argv){
   resetVariables();
 
   //Task =======================================================================
+  while(ros::ok() && !task_hy_getDirection){
+    float d = 999;
+    bool error = true;
+    bool atRight = false;
+    bool atLeft = false;
+
+    readHydrophone();
+
+    //Finding quadrant
+    while(error){
+      error = false;
+      hydrophoneRotate = false;
+      angleToTurn = 90;
+
+      //Left
+      if(hydrophoneDirection < 3){
+        //Turn left 90 degree
+        directionToTurn = 0;
+        while (ros::ok() && !hydrophoneRotate){
+          if(!receivedFromRControl){
+            rControl.state = directionToTurn;
+            rControl.rotation = angleToTurn;
+            rControlPublisher.publish(rControl);
+          }
+          settingCVInfo(0,0,0,0,0,0);
+          cvInfoPublisher.publish(cvInfo);
+          ros::spinOnce();
+          loop_rate.sleep();
+        }
+        readHydrophone();
+        //Left
+        if(hydrophoneDirection < 3){
+          atLeft = true;
+        }
+        //Middle
+        else if(hydrophoneDirection == 3){
+          d = yaw;
+        }
+        //Right
+        else if(hydrophoneDirection > 3){
+          atRight = true;
+        }
+      }
+      //Middle
+      else if(hydrophoneDirection == 3){
+        //Turn right 90 degree
+        directionToTurn = 2;
+        while (ros::ok() && !hydrophoneRotate){
+          if(!receivedFromRControl){
+            rControl.state = directionToTurn;
+            rControl.rotation = angleToTurn;
+            rControlPublisher.publish(rControl);
+          }
+          settingCVInfo(0,0,0,0,0,0);
+          cvInfoPublisher.publish(cvInfo);
+          ros::spinOnce();
+          loop_rate.sleep();
+        }
+        readHydrophone();
+        //Left
+        if(hydrophoneDirection < 3){
+          d = yaw - 90;
+        }
+        //Middle
+        else if(hydrophoneDirection == 3){
+          error = true;
+        }
+        //Right
+        else if(hydrophoneDirection > 3){
+          d = yaw + 90;
+        }
+      }
+      //Right
+      else if(hydrophoneDirection > 3){
+        //Turn right 90 degree
+        directionToTurn = 2;
+        while (ros::ok() && !hydrophoneRotate){
+          if(!receivedFromRControl){
+            rControl.state = directionToTurn;
+            rControl.rotation = angleToTurn;
+            rControlPublisher.publish(rControl);
+          }
+          settingCVInfo(0,0,0,0,0,0);
+          cvInfoPublisher.publish(cvInfo);
+          ros::spinOnce();
+          loop_rate.sleep();
+        }
+        readHydrophone();
+        //Left
+        if(hydrophoneDirection < 3){
+          atLeft = true;
+        }
+        //Middle
+        else if(hydrophoneDirection == 3){
+          d = yaw;
+        }
+        //Right
+        else if(hydrophoneDirection > 3){
+          atRight = true;
+        }
+      }
+
+      settingCVInfo(0,0,0,0,0,0);
+      cvInfoPublisher.publish(cvInfo);
+      ros::spinOnce();
+      loop_rate.sleep();
+    }
+
+    //If in the right degree
+    if(d != 999 && abs(d - yaw) < 40){
+      task_hy_getDirection = true;
+    }
+    //If straight left or straight right
+    else if(d != 999 && abs(d - yaw) >= 40){
+      hydrophoneRotate = false;
+      angleToTurn = 90;
+      if(d > yaw){
+        //Turn right 90 degree
+        directionToTurn = 2;
+        while (ros::ok() && !hydrophoneRotate){
+          if(!receivedFromRControl){
+            rControl.state = directionToTurn;
+            rControl.rotation = angleToTurn;
+            rControlPublisher.publish(rControl);
+          }
+          settingCVInfo(0,0,0,0,0,0);
+          cvInfoPublisher.publish(cvInfo);
+          ros::spinOnce();
+          loop_rate.sleep();
+        }
+      }
+      else{
+        //Turn left 90 degree
+        directionToTurn = 0;
+        while (ros::ok() && !hydrophoneRotate){
+          if(!receivedFromRControl){
+            rControl.state = directionToTurn;
+            rControl.rotation = angleToTurn;
+            rControlPublisher.publish(rControl);
+          }
+          settingCVInfo(0,0,0,0,0,0);
+          cvInfoPublisher.publish(cvInfo);
+          ros::spinOnce();
+          loop_rate.sleep();
+        }
+      }
+      task_hy_getDirection = true;
+    }
+    //If in the left quadrant
+    else if(atLeft){
+      //Turn left 45 degree
+      hydrophoneRotate = false;
+      directionToTurn = 0;
+      angleToTurn = 45;
+      while (ros::ok() && !hydrophoneRotate){
+        if(!receivedFromRControl){
+          rControl.state = directionToTurn;
+          rControl.rotation = angleToTurn;
+          rControlPublisher.publish(rControl);
+        }
+        settingCVInfo(0,0,0,0,0,0);
+        cvInfoPublisher.publish(cvInfo);
+        ros::spinOnce();
+        loop_rate.sleep();
+      }
+      readHydrophone();
+      //Left
+      if(hydrophoneDirection < 3){
+        //Turn left 22.5 degree
+        hydrophoneRotate = false;
+        directionToTurn = 0;
+        angleToTurn = 22.5;
+        while (ros::ok() && !hydrophoneRotate){
+          if(!receivedFromRControl){
+            rControl.state = directionToTurn;
+            rControl.rotation = angleToTurn;
+            rControlPublisher.publish(rControl);
+          }
+          settingCVInfo(0,0,0,0,0,0);
+          cvInfoPublisher.publish(cvInfo);
+          ros::spinOnce();
+          loop_rate.sleep();
+        }
+      }
+      else if(hydrophoneDirection > 3){
+        //Turn right 22.5 degree
+        hydrophoneRotate = false;
+        directionToTurn = 2;
+        angleToTurn = 22.5;
+        while (ros::ok() && !hydrophoneRotate){
+          if(!receivedFromRControl){
+            rControl.state = directionToTurn;
+            rControl.rotation = angleToTurn;
+            rControlPublisher.publish(rControl);
+          }
+          settingCVInfo(0,0,0,0,0,0);
+          cvInfoPublisher.publish(cvInfo);
+          ros::spinOnce();
+          loop_rate.sleep();
+        }
+      }
+      task_hy_getDirection = true;
+    }
+    //If in the right quadrant
+    else if(atRight){
+      //Turn right 45 degree
+      hydrophoneRotate = false;
+      directionToTurn = 2;
+      angleToTurn = 45;
+      while (ros::ok() && !hydrophoneRotate){
+        if(!receivedFromRControl){
+          rControl.state = directionToTurn;
+          rControl.rotation = angleToTurn;
+          rControlPublisher.publish(rControl);
+        }
+        settingCVInfo(0,0,0,0,0,0);
+        cvInfoPublisher.publish(cvInfo);
+        ros::spinOnce();
+        loop_rate.sleep();
+      }
+      readHydrophone();
+      //Left
+      if(hydrophoneDirection < 3){
+        //Turn left 22.5 degree
+        hydrophoneRotate = false;
+        directionToTurn = 0;
+        angleToTurn = 22.5;
+        while (ros::ok() && !hydrophoneRotate){
+          if(!receivedFromRControl){
+            rControl.state = directionToTurn;
+            rControl.rotation = angleToTurn;
+            rControlPublisher.publish(rControl);
+          }
+          settingCVInfo(0,0,0,0,0,0);
+          cvInfoPublisher.publish(cvInfo);
+          ros::spinOnce();
+          loop_rate.sleep();
+        }
+      }
+      else if(hydrophoneDirection > 3){
+        //Turn right 22.5 degree
+        hydrophoneRotate = false;
+        directionToTurn = 2;
+        angleToTurn = 22.5;
+        while (ros::ok() && !hydrophoneRotate){
+          if(!receivedFromRControl){
+            rControl.state = directionToTurn;
+            rControl.rotation = angleToTurn;
+            rControlPublisher.publish(rControl);
+          }
+          settingCVInfo(0,0,0,0,0,0);
+          cvInfoPublisher.publish(cvInfo);
+          ros::spinOnce();
+          loop_rate.sleep();
+        }
+      }
+      task_hy_getDirection = true;
+    }
+
+    settingCVInfo(0,0,0,0,0,0);
+    cvInfoPublisher.publish(cvInfo);
+    ros::spinOnce();
+    loop_rate.sleep();
+  }
+
+  resetVariables();
+
+  //Task =======================================================================
   if(!task_turnOffMotors) ROS_INFO("Turning off motors...");
   while(ros::ok() && !task_turnOffMotors){
     if(!receivedFromHControl){
@@ -1327,6 +1606,18 @@ void breakBetweenTasks(int seconds){
 
 
 
+void readHydrophone(){
+  readingHydrophone = true;
+  hydrophoneLastRead = false;
+  ros::Rate rate(10);
+  while(readingHydrophone){
+    ros::spinOnce();
+    rate.sleep();
+  }
+}
+
+
+
 void resetVariables(){
   receivedFromPControl = false;
   receivedFromRControl = false;
@@ -1339,6 +1630,8 @@ void resetVariables(){
   finishedHeightControl = false;
   objectFound = false;
   findingObject = false;
+  readingHydrophone = false;
+  hydrophoneLastRead = false;
   targetInfoCounter = 0;
   cvTime = 0;
   cvTimer = 0;
@@ -1455,6 +1748,7 @@ void frontCamDistanceCallback(const auv_cal_state_la_2017::FrontCamDistance fcd)
   else if(!task_cv_beforeCenter_1){}
   else if(!task_cv_centering_1){}
   else if(!task_hydrophone_finding){}
+  else if(!task_hy_getDirection){}
   else if(!task_turnOffMotors){}
 
   frontCamForwardDistance = fcd.frontCamForwardDistance;
@@ -1566,6 +1860,7 @@ void pControlStatusCallback(const std_msgs::Int32 pc){
   else if(!task_cv_beforeCenter_1){}
   else if(!task_cv_centering_1){}
   else if(!task_hydrophone_finding){}
+  else if(!task_hy_getDirection){}
   else if(!task_turnOffMotors){}
 }
 
@@ -1704,6 +1999,7 @@ void hControlStatusCallback(const auv_cal_state_la_2017::HControl hc){
   else if(!task_cv_beforeCenter_1){}
   else if(!task_cv_centering_1){}
   else if(!task_hydrophone_finding){}
+  else if(!task_hy_getDirection){}
   else if(!task_turnOffMotors){
     hControlReceiveCheck(5,9,&task_turnOffMotors,hcState,hcDepth);
   }
@@ -1849,6 +2145,11 @@ void rControlStatusCallback(const auv_cal_state_la_2017::RControl rc){
   else if(!task_cv_beforeCenter_1){}
   else if(!task_cv_centering_1){}
   else if(!task_hydrophone_finding){}
+  else if(!task_hy_getDirection){
+    if(!hydrophoneRotate){
+      rControlReceiveCheck(directionToTurn,angleToTurn,&hydrophoneRotate,rcState,rcRotation);
+    }
+  }
   else if(!task_turnOffMotors){}
 }
 
@@ -1977,6 +2278,7 @@ void mControlStatusCallback(const auv_cal_state_la_2017::MControl mc){
     mControlReceiveCheck(3,&task_cv_centering_1,mcState);
   }
   else if(!task_hydrophone_finding){}
+  else if(!task_hy_getDirection){}
   else if(!task_turnOffMotors){}
 }
 
@@ -2088,6 +2390,7 @@ void targetInfoCallback(const auv_cal_state_la_2017::TargetInfo ti){
   }
   else if(!task_cv_centering_1){}
   else if(!task_hydrophone_finding){}
+  else if(!task_hy_getDirection){}
   else if(!task_turnOffMotors){}
 }
 
@@ -2142,6 +2445,17 @@ void hydrophoneCallback(const auv_cal_state_la_2017::Hydrophone hy){
     ROS_INFO("Message received.");
     hydrophoneDirection = hy.direction;
     hydrophoneAngle = hy.angle;
+  }
+  else if(!task_hy_getDirection){
+    if(readingHydrophone && !hydrophoneLastRead){
+      hydrophoneLastRead = true;
+    }
+    if(readingHydrophone && hydrophoneLastRead){
+      ROS_INFO("Hydrophone read.");
+      hydrophoneDirection = hy.direction;
+      readingHydrophone = false;
+      hydrophoneLastRead = false;
+    }
   }
   else if(!task_turnOffMotors){}
 }
