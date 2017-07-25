@@ -1,6 +1,6 @@
 %rosinit()
 
-client = tcpip('10.0.0.3',55000,'NetworkRole','Client');
+client = tcpip('10.0.0.2',55000,'NetworkRole','Client');
 set(client,'InputBufferSize',7688);
 set(client,'Timeout',30);
 fopen(client);

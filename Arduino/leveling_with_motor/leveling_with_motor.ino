@@ -267,7 +267,7 @@ void setup() {
 //  assignedDepth = 0.2;
   //assignedYaw = -191.5;
   //subIsReady = true;
-  assignedYaw = 78.23;
+  assignedYaw = 78.4;
 //  currentRotation.data = yaw;
 
   hControlStatus.state = 1;
@@ -343,7 +343,7 @@ void loop() {
 
   //Depth
   //Testing----------------------
-  //feetDepth_read =  sensor.depth() * 3.28 + 0.9;                                   //1 meter = 3.28 feet
+  feetDepth_read =  sensor.depth() * 3.28 + 0.9;                                   //1 meter = 3.28 feet
   dutyCycl_depth = (abs(assignedDepth - feetDepth_read)/ 13.0);              //function to get a percentage of assigned height to the feet read
   PWM_Motors_Depth = dutyCycl_depth * 400;                                   //PWM for motors are between 1500 - 1900; difference is 400
 
@@ -434,9 +434,19 @@ void hControlCallback(const auv_cal_state_la_2017::HControl& hControl) {
     if(subIsReady){
       subIsReady = false;
       nh.loginfo("Motors are locked.");
+
     }
     assignedDepth = feetDepth_read;
 //    assignedDepth = 0.2;
+    subIsReady = false;
+    T1.writeMicroseconds(1500);
+    T2.writeMicroseconds(1500);
+    T3.writeMicroseconds(1500);
+    T4.writeMicroseconds(1500);
+    T5.writeMicroseconds(1500);
+    T6.writeMicroseconds(1500);
+    T7.writeMicroseconds(1500);
+    T8.writeMicroseconds(1500);
   }
   hControlStatus.state = hState;
   hControlStatus.depth = hDepth;
@@ -1130,7 +1140,7 @@ void movementControl(){
   else if(mControlMode5){
     //forward
     if(mControlDirection == 1){
-      T6.writeMicroseconds(1500 + mControlPower);
+      T6.writeMicroseconds(1500 + mControlPower + 10);
       T8.writeMicroseconds(1500 - mControlPower);
       //Testing-------------------
       positionY += 0.05;
@@ -1220,7 +1230,7 @@ void bottomCamDistanceCallback(const auv_cal_state_la_2017::BottomCamDistance& b
 //    T7.writeMicroseconds(1500 + PWM_Motors);
 //  }
 void rotateLeftDynamically(){
-  float rotatePower = PWM_Motors_orient * 2;
+  float rotatePower = PWM_Motors_orient * 3.8;
   if(rotatePower > 400) rotatePower = 400;
   if((mControlMode5 && (mControlDirection == 2 || mControlDirection == 4)) || keepMovingRight || keepMovingLeft){
     T6.writeMicroseconds(1500 + rotatePower);
@@ -1238,7 +1248,7 @@ void rotateLeftDynamically(){
 }
 
 void rotateRightDynamically(){
-  float rotatePower = PWM_Motors_orient * 2;
+  float rotatePower = PWM_Motors_orient * 3.8;
   if(rotatePower > 400) rotatePower = 400;
   if((mControlMode5 && (mControlDirection == 2 || mControlDirection == 4)) || keepMovingRight || keepMovingLeft){
     T6.writeMicroseconds(1500 - rotatePower);
