@@ -4,11 +4,11 @@ clc;
 
 given_radius = 8*49/8;
 given_distance = 60;
-color_choice = 2;       % integer; colors listed below
-camdevice = 'usb';   % 'webcam' 'image' 'usb'
+color_choice = 1;       % integer; colors listed below
+camdevice = 'image';   % 'webcam' 'image' 'usb'
 videofeed = true;      % shows results
-satthresh = 150;        % threshold sensitivity for saturation channel (0-255)
-huethresh = 50;        % threshold sensitivity for hue channel (0-255)
+satthresh = 60;        % threshold sensitivity for saturation channel (0-255)
+huethresh = 10;        % threshold sensitivity for hue channel (0-255)
 scale = 4;              % image processing scaling
 display = 1;            % display image scaling
 corners = true;        % display shape corners
@@ -17,7 +17,7 @@ global camera;
 
 %% Colors
 
-colors_list = { 'red',[255,0,0];        % 1
+colors_list = { 'red',[211,85,43];        % 1
     'green',[25,123,76];      % 2
     'yellow',[199,204,120]      %3
     'pink',[255,102,102]
@@ -57,8 +57,9 @@ switch camdevice
 %         pause(2);
         img = camera.read();
     case 'image'
-        img = which('buoy.png');
+        img = which('front37.jpg');
         img = cv.imread(img, 'Flags',1);
+        img = img(150:end,:,:);
     otherwise
         camera = videoinput('linuxvideo',1,'RGB24_744x480');
         pause(2);
@@ -120,7 +121,7 @@ while 1
         if ~isnan(A(1,2))
             %% Calculate the shape of the detected contour
             
-            while ~circles && k < 10 && k <= length(A(:,1)) && A(k,1) > 25
+            while ~circles && k < 10 && k <= length(A(:,1)) && A(k,1) > 2
                 c = A(k,2);             % index of contour with largest area
                 cnt = cnts{c};
                 M = cv.moments(cnt);

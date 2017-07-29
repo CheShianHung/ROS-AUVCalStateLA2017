@@ -16,12 +16,12 @@ void pControlCallback(const std_msgs::Int32& pControl);
 ros::Subscriber<std_msgs::Int32> pControlSubscriber("pneumatics_control", &pControlCallback);
 
 void setup (){
-  pinMode(4,OUTPUT);
-  pinMode(5,OUTPUT);
-  pinMode(6,OUTPUT);
-  pinMode(7,OUTPUT);
   pinMode(8,OUTPUT);
   pinMode(9,OUTPUT);
+  pinMode(10,OUTPUT);
+  pinMode(11,OUTPUT);
+  pinMode(12,OUTPUT);
+  pinMode(13,OUTPUT);
 
   pControlNum = 0;
   pControlTime = 1;
@@ -57,7 +57,7 @@ void pControlCallback(const std_msgs::Int32& pControl){
       nh.loginfo("pneumatics_control is now cancelled\n");
     }
   }
-  else if (pControl.data >= 4 && pControl.data <= 9){
+  else if (pControl.data >= 8 && pControl.data <= 13){
     if(!pControlIsRunning){
       pControlNum = pControl.data;
       pControlIsRunning = true;

@@ -605,7 +605,7 @@ switch msg.TaskNumber
                             i = mean(mean(hsvi(:,:,3)));
                         end
                     end
-                    img = img(150:480,161:650,:);
+                    img = img(1:480,161:650,:);
             end
             
             if ~found
